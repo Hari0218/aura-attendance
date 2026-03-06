@@ -4,43 +4,48 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Scan } from "lucide-react";
+import { Eye, EyeOff, Scan, Sparkles } from "lucide-react";
 
 function FaceIllustration() {
   return (
-    <div className="relative w-64 h-64">
+    <div className="relative w-72 h-72">
+      {/* Ambient glow */}
+      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/20 via-purple-500/10 to-cyan-400/20 blur-3xl animate-glow-pulse" />
+      
       {/* Face outline */}
-      <div className="absolute inset-8 rounded-full border-2 border-primary/30 animate-float">
-        <div className="absolute inset-4 rounded-full border border-primary/20" />
+      <div className="absolute inset-8 rounded-full border-2 border-primary/40 animate-float shadow-[0_0_40px_hsl(243_75%_59%/0.15)]">
+        <div className="absolute inset-3 rounded-full border border-primary/20" />
+        <div className="absolute inset-6 rounded-full border border-primary/10" />
         {/* Eyes */}
-        <div className="absolute top-[35%] left-[25%] w-3 h-3 rounded-full bg-primary/50" />
-        <div className="absolute top-[35%] right-[25%] w-3 h-3 rounded-full bg-primary/50" />
+        <div className="absolute top-[35%] left-[25%] w-3.5 h-3.5 rounded-full bg-primary/60 shadow-[0_0_12px_hsl(243_75%_59%/0.5)]" />
+        <div className="absolute top-[35%] right-[25%] w-3.5 h-3.5 rounded-full bg-primary/60 shadow-[0_0_12px_hsl(243_75%_59%/0.5)]" />
         {/* Mouth */}
-        <div className="absolute bottom-[30%] left-1/2 -translate-x-1/2 w-8 h-1 rounded-full bg-primary/30" />
+        <div className="absolute bottom-[28%] left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20" />
       </div>
       {/* Scanning lines */}
       <div className="absolute inset-0 overflow-hidden rounded-full">
-        <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-line" />
+        <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary/80 to-transparent animate-scan-line shadow-[0_0_20px_hsl(243_75%_59%/0.6)]" />
       </div>
-      {/* Corner brackets */}
-      <div className="absolute top-4 left-4 w-6 h-6 border-l-2 border-t-2 border-primary/60 rounded-tl" />
-      <div className="absolute top-4 right-4 w-6 h-6 border-r-2 border-t-2 border-primary/60 rounded-tr" />
-      <div className="absolute bottom-4 left-4 w-6 h-6 border-l-2 border-b-2 border-primary/60 rounded-bl" />
-      <div className="absolute bottom-4 right-4 w-6 h-6 border-r-2 border-b-2 border-primary/60 rounded-br" />
-      {/* Dots */}
-      {[...Array(6)].map((_, i) => (
+      {/* Corner brackets with glow */}
+      <div className="absolute top-3 left-3 w-8 h-8 border-l-2 border-t-2 border-primary/70 rounded-tl-lg shadow-[0_0_10px_hsl(243_75%_59%/0.3)]" />
+      <div className="absolute top-3 right-3 w-8 h-8 border-r-2 border-t-2 border-primary/70 rounded-tr-lg shadow-[0_0_10px_hsl(243_75%_59%/0.3)]" />
+      <div className="absolute bottom-3 left-3 w-8 h-8 border-l-2 border-b-2 border-primary/70 rounded-bl-lg shadow-[0_0_10px_hsl(243_75%_59%/0.3)]" />
+      <div className="absolute bottom-3 right-3 w-8 h-8 border-r-2 border-b-2 border-primary/70 rounded-br-lg shadow-[0_0_10px_hsl(243_75%_59%/0.3)]" />
+      {/* Floating particles */}
+      {[...Array(8)].map((_, i) => (
         <div
           key={i}
-          className="absolute w-1.5 h-1.5 rounded-full bg-primary/40 animate-pulse"
+          className="absolute w-1.5 h-1.5 rounded-full bg-primary/50 animate-pulse shadow-[0_0_6px_hsl(243_75%_59%/0.4)]"
           style={{
-            top: `${20 + Math.random() * 60}%`,
-            left: `${20 + Math.random() * 60}%`,
-            animationDelay: `${i * 0.3}s`,
+            top: `${15 + Math.random() * 70}%`,
+            left: `${15 + Math.random() * 70}%`,
+            animationDelay: `${i * 0.4}s`,
           }}
         />
       ))}
       {/* Pulse rings */}
-      <div className="absolute inset-0 rounded-full border border-primary/10 animate-pulse-ring" />
+      <div className="absolute inset-0 rounded-full border border-primary/15 animate-pulse-ring" />
+      <div className="absolute inset-4 rounded-full border border-primary/10 animate-pulse-ring" style={{ animationDelay: "0.5s" }} />
     </div>
   );
 }
@@ -62,39 +67,48 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5 relative overflow-hidden">
-      {/* Floating shapes */}
-      <div className="absolute top-20 left-20 w-72 h-72 bg-primary/5 rounded-full blur-3xl animate-float" />
-      <div className="absolute bottom-20 right-20 w-96 h-96 bg-primary/3 rounded-full blur-3xl animate-float-delay" />
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Rich gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-background to-purple-500/5" />
+      <div className="absolute inset-0 dot-pattern opacity-40" />
+      
+      {/* Floating gradient orbs */}
+      <div className="absolute top-10 left-10 w-80 h-80 bg-primary/8 rounded-full blur-[100px] animate-float" />
+      <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-500/6 rounded-full blur-[120px] animate-float-delay" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-400/4 rounded-full blur-[150px]" />
 
-      <div className="w-full max-w-4xl grid md:grid-cols-2 gap-8 items-center animate-fade-in">
+      <div className="w-full max-w-5xl grid md:grid-cols-2 gap-12 items-center animate-fade-in relative z-10">
         {/* Illustration side */}
-        <div className="hidden md:flex flex-col items-center justify-center gap-6">
+        <div className="hidden md:flex flex-col items-center justify-center gap-8">
           <FaceIllustration />
-          <div className="text-center space-y-2">
-            <h2 className="text-xl font-semibold text-foreground">AI Face Recognition</h2>
-            <p className="text-sm text-muted-foreground max-w-xs">
-              Automated attendance powered by advanced facial recognition technology
+          <div className="text-center space-y-3">
+            <div className="flex items-center justify-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <h2 className="text-2xl font-bold text-gradient">AI Face Recognition</h2>
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+              Automated attendance powered by advanced facial recognition technology. Fast, accurate, and intelligent.
             </p>
           </div>
         </div>
 
         {/* Login form */}
-        <Card className="border-border/50 shadow-xl">
-          <CardHeader className="space-y-1 pb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
-                <Scan className="h-4 w-4 text-primary-foreground" />
+        <Card className="glass-card card-glow">
+          <CardHeader className="space-y-1 pb-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center glow-primary">
+                <Scan className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="font-bold text-lg text-foreground">AttendAI</span>
+              <span className="font-extrabold text-xl text-gradient">AttendAI</span>
             </div>
-            <CardTitle className="text-2xl">Welcome back</CardTitle>
-            <CardDescription>Sign in to your teacher dashboard</CardDescription>
+            <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+            <CardDescription className="text-muted-foreground">Sign in to your teacher dashboard</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -102,10 +116,11 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  className="h-11 bg-muted/50 border-border/60 focus:border-primary focus:ring-primary/20"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-sm font-medium">Password</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -114,6 +129,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    className="h-11 bg-muted/50 border-border/60 focus:border-primary focus:ring-primary/20"
                   />
                   <Button
                     type="button"
@@ -128,14 +144,14 @@ export default function LoginPage() {
               </div>
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                  <input type="checkbox" className="rounded border-input" />
+                  <input type="checkbox" className="rounded border-input accent-primary" />
                   Remember me
                 </label>
-                <Button variant="link" className="px-0 text-sm h-auto" type="button">
+                <Button variant="link" className="px-0 text-sm h-auto text-primary" type="button">
                   Forgot password?
                 </Button>
               </div>
-              <Button type="submit" className="w-full gradient-primary text-primary-foreground border-0" disabled={loading}>
+              <Button type="submit" className="w-full h-11 gradient-primary text-primary-foreground border-0 font-semibold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300" disabled={loading}>
                 {loading ? (
                   <div className="flex items-center gap-2">
                     <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
@@ -145,6 +161,9 @@ export default function LoginPage() {
                   "Sign in"
                 )}
               </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Secure login • 256-bit encryption
+              </p>
             </form>
           </CardContent>
         </Card>
