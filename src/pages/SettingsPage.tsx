@@ -9,10 +9,23 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useThemeContext } from "@/components/ThemeProvider";
 import { Save, Moon, Bell, Shield, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useThemeContext();
   const { toast } = useToast();
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    setName(localStorage.getItem("userName") || "");
+    setEmail(localStorage.getItem("userEmail") || "");
+  }, []);
+
+  const initials = name
+    ? name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "U";
 
   return (
     <DashboardLayout>
@@ -33,21 +46,19 @@ export default function SettingsPage() {
           <CardContent className="space-y-4 -mt-10 relative">
             <div className="flex items-end gap-4">
               <Avatar className="h-20 w-20 ring-4 ring-background shadow-xl">
-                <AvatarFallback className="gradient-primary text-primary-foreground text-xl font-bold">DP</AvatarFallback>
+                <AvatarFallback className="gradient-primary text-primary-foreground text-xl font-bold">{initials}</AvatarFallback>
               </Avatar>
               <div className="pb-1">
-                <p className="font-bold text-lg text-foreground">Dr. Priya Sharma</p>
-                <p className="text-sm text-muted-foreground">Computer Science Department</p>
+                <p className="font-bold text-lg text-foreground">{name || "Teacher"}</p>
+                <p className="text-sm text-muted-foreground">{email}</p>
               </div>
             </div>
             <Separator className="my-4" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2"><Label className="font-medium">Full Name</Label><Input defaultValue="Dr. Priya Sharma" className="bg-muted/50 border-border/60" /></div>
-              <div className="space-y-2"><Label className="font-medium">Email</Label><Input defaultValue="priya@school.edu" className="bg-muted/50 border-border/60" /></div>
-              <div className="space-y-2"><Label className="font-medium">Department</Label><Input defaultValue="Computer Science" className="bg-muted/50 border-border/60" /></div>
-              <div className="space-y-2"><Label className="font-medium">Employee ID</Label><Input defaultValue="TCH-042" className="bg-muted/50 border-border/60" /></div>
+              <div className="space-y-2"><Label className="font-medium">Full Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="bg-muted/50 border-border/60" /></div>
+              <div className="space-y-2"><Label className="font-medium">Email</Label><Input value={email} readOnly className="bg-muted/50 border-border/60" /></div>
             </div>
-            <Button className="gradient-primary text-primary-foreground border-0 font-semibold shadow-lg shadow-primary/20" onClick={() => toast({ title: "✅ Profile Updated" })}>
+            <Button className="gradient-primary text-primary-foreground border-0 font-semibold shadow-lg shadow-primary/20" onClick={() => { localStorage.setItem("userName", name); toast({ title: "✅ Profile Updated" }); }}>
               <Save className="h-4 w-4 mr-2" /> Save Changes
             </Button>
           </CardContent>

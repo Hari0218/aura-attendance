@@ -11,7 +11,7 @@ function FaceIllustration() {
     <div className="relative w-72 h-72">
       {/* Ambient glow */}
       <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/20 via-purple-500/10 to-cyan-400/20 blur-3xl animate-glow-pulse" />
-      
+
       {/* Face outline */}
       <div className="absolute inset-8 rounded-full border-2 border-primary/40 animate-float shadow-[0_0_40px_hsl(243_75%_59%/0.15)]">
         <div className="absolute inset-3 rounded-full border border-primary/20" />
@@ -50,6 +50,9 @@ function FaceIllustration() {
   );
 }
 
+import { authApi } from "@/lib/api";
+import { toast } from "sonner";
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,13 +60,32 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const response = await authApi.login({ email, password });
+      localStorage.setItem('token', response.data.access_token);
+      // Fetch and store user profile
+      try {
+        const meRes = await authApi.me();
+        localStorage.setItem('userName', meRes.data.name);
+        localStorage.setItem('userEmail', meRes.data.email);
+      } catch {}
+      toast.success("Login successful!");
       navigate("/dashboard");
-    }, 1500);
+    } catch (error: any) {
+      console.error("Login failed:", error);
+      const errorMessage = error.response?.data?.detail;
+      const displayMessage = typeof errorMessage === 'string'
+        ? errorMessage
+        : Array.isArray(errorMessage)
+          ? errorMessage[0]?.msg
+          : "Login failed. Please check your credentials.";
+      toast.error(displayMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -71,7 +93,7 @@ export default function LoginPage() {
       {/* Rich gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-background to-purple-500/5" />
       <div className="absolute inset-0 dot-pattern opacity-40" />
-      
+
       {/* Floating gradient orbs */}
       <div className="absolute top-10 left-10 w-80 h-80 bg-primary/8 rounded-full blur-[100px] animate-float" />
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-500/6 rounded-full blur-[120px] animate-float-delay" />

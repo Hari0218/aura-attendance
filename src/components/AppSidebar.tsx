@@ -6,6 +6,7 @@ import {
   Bell,
   Brain,
   Settings,
+  School,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -25,6 +26,7 @@ import {
 const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Mark Attendance", url: "/mark-attendance", icon: Camera },
+  { title: "Classrooms", url: "/classrooms", icon: School },
   { title: "Students", url: "/students", icon: Users },
   { title: "History", url: "/history", icon: CalendarDays },
   { title: "Notifications", url: "/notifications", icon: Bell },

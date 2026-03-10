@@ -12,6 +12,7 @@ import HistoryPage from "./pages/HistoryPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import InsightsPage from "./pages/InsightsPage";
 import SettingsPage from "./pages/SettingsPage";
+import ClassroomsPage from "./pages/ClassroomsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/insights" element={<InsightsPage />} />
+            <Route path="/classrooms" element={<ClassroomsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
