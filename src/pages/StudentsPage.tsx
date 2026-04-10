@@ -3,24 +3,57 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, Edit, Trash2, Upload, Users } from "lucide-react";
-import { studentApi } from "@/lib/api";
+import { classroomApi, studentApi } from "@/lib/api";
 import { toast } from "sonner";
+
+interface Student {
+  id: string;
+  name: string;
+  roll_number: string;
+  class_id: string;
+}
+
+interface Classroom {
+  id: string;
+  name: string;
+}
 
 export default function StudentsPage() {
   const [search, setSearch] = useState("");
-  const [students, setStudents] = useState<any[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newStudent, setNewStudent] = useState({ name: "", rollNumber: "", classId: "CS-A" });
+  const [newStudent, setNewStudent] = useState({ name: "", rollNumber: "", classId: "" });
   const [faceImage, setFaceImage] = useState<File | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
-    fetchStudents();
+    void loadInitialData();
   }, []);
+
+  const loadInitialData = async () => {
+    await Promise.all([loadClassrooms(), fetchStudents()]);
+  };
+
+  const loadClassrooms = async () => {
+    try {
+      const response = await classroomApi.getAll();
+      setClassrooms(response.data);
+      if (response.data.length > 0) {
+        setNewStudent((current) => ({
+          ...current,
+          classId: current.classId || response.data[0].id,
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to load classrooms:", error);
+      toast.error("Failed to load classrooms");
+    }
+  };
 
   const fetchStudents = async () => {
     try {
@@ -35,41 +68,38 @@ export default function StudentsPage() {
   };
 
   const handleAddStudent = async () => {
-    if (!newStudent.name || !newStudent.rollNumber) {
-      toast.error("Please fill in all fields");
+    if (!newStudent.name || !newStudent.rollNumber || !newStudent.classId) {
+      toast.error("Please fill in the required fields");
       return;
     }
 
     setIsAdding(true);
     try {
-      // 1. Create student
       const response = await studentApi.create({
         name: newStudent.name,
         roll_number: newStudent.rollNumber,
-        class_id: newStudent.classId
+        class_id: newStudent.classId,
       });
 
-      const studentId = response.data.id;
-
-      // 2. Upload face if provided
       if (faceImage) {
-        await studentApi.uploadFace(studentId, faceImage);
+        await studentApi.uploadFace(response.data.id, faceImage);
       }
 
       toast.success("Student added successfully");
-      setNewStudent({ name: "", rollNumber: "", classId: "CS-A" });
+      setNewStudent({ name: "", rollNumber: "", classId: newStudent.classId });
       setFaceImage(null);
-      fetchStudents();
-    } catch (error) {
+      await fetchStudents();
+    } catch (error: any) {
       console.error("Failed to add student:", error);
-      toast.error("Failed to add student");
+      toast.error(error.response?.data?.detail || "Failed to add student");
     } finally {
       setIsAdding(false);
     }
   };
 
-  const filtered = students.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase()) || s.roll_number.toLowerCase().includes(search.toLowerCase())
+  const filtered = students.filter((student) =>
+    student.name.toLowerCase().includes(search.toLowerCase()) ||
+    student.roll_number.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -92,7 +122,9 @@ export default function StudentsPage() {
               </Button>
             </DialogTrigger>
             <DialogContent className="glass-card">
-              <DialogHeader><DialogTitle className="text-lg font-bold">Add New Student</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold">Add New Student</DialogTitle>
+              </DialogHeader>
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
                   <Label>Full Name</Label>
@@ -106,17 +138,35 @@ export default function StudentsPage() {
                 <div className="space-y-2">
                   <Label>Roll Number</Label>
                   <Input
-                    placeholder="e.g. CS-013"
+                    placeholder="e.g. AIDS-A-013"
                     className="bg-muted/50"
                     value={newStudent.rollNumber}
                     onChange={(e) => setNewStudent({ ...newStudent, rollNumber: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label>Classroom</Label>
+                  <Select
+                    value={newStudent.classId}
+                    onValueChange={(value) => setNewStudent({ ...newStudent, classId: value })}
+                  >
+                    <SelectTrigger className="bg-muted/50">
+                      <SelectValue placeholder="Select classroom" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classrooms.map((classroom) => (
+                        <SelectItem key={classroom.id} value={classroom.id}>
+                          {classroom.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
                   <Label>Face Image</Label>
                   <div
-                    className={`border-2 border-dashed ${faceImage ? 'border-primary' : 'border-border/60'} rounded-xl p-8 text-center cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-all`}
-                    onClick={() => document.getElementById('face-upload')?.click()}
+                    className={`border-2 border-dashed ${faceImage ? "border-primary" : "border-border/60"} rounded-xl p-8 text-center cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-all`}
+                    onClick={() => document.getElementById("face-upload")?.click()}
                   >
                     <input
                       id="face-upload"
@@ -125,7 +175,7 @@ export default function StudentsPage() {
                       onChange={(e) => setFaceImage(e.target.files ? e.target.files[0] : null)}
                       accept="image/*"
                     />
-                    <Upload className={`h-8 w-8 mx-auto ${faceImage ? 'text-primary' : 'text-primary/60'} mb-2`} />
+                    <Upload className={`h-8 w-8 mx-auto ${faceImage ? "text-primary" : "text-primary/60"} mb-2`} />
                     <p className="text-sm text-muted-foreground font-medium">
                       {faceImage ? faceImage.name : "Click to upload face image"}
                     </p>
@@ -134,7 +184,7 @@ export default function StudentsPage() {
                 <Button
                   className="w-full gradient-primary text-primary-foreground border-0 font-semibold shadow-lg shadow-primary/20"
                   onClick={handleAddStudent}
-                  disabled={isAdding}
+                  disabled={isAdding || classrooms.length === 0}
                 >
                   {isAdding ? "Adding..." : "Save Student"}
                 </Button>
@@ -145,7 +195,12 @@ export default function StudentsPage() {
 
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search students..." className="pl-9 bg-muted/50 border-border/60" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input
+            placeholder="Search students..."
+            className="pl-9 bg-muted/50 border-border/60"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
 
         {loading ? (
@@ -160,11 +215,15 @@ export default function StudentsPage() {
                 <CardContent className="p-5 relative">
                   <div className="flex items-start justify-between mb-4">
                     <div className="h-14 w-14 rounded-2xl gradient-primary flex items-center justify-center text-primary-foreground font-bold text-base shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-                      {student.name.split(" ").map((n: string) => n[0]).join("")}
+                      {student.name.split(" ").map((part) => part[0]).join("")}
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg"><Edit className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" disabled>
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive" disabled>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
                   <h3 className="font-bold text-sm text-foreground">{student.name}</h3>

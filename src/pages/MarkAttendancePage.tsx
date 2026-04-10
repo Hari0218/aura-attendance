@@ -1,20 +1,38 @@
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Upload, Check, RefreshCw, Download, Scan, UserCheck, UserX, Clock, X, Sparkles, Zap } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { attendanceApi, studentApi } from "@/lib/api";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { attendanceApi, classroomApi } from "@/lib/api";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 
 type Phase = "upload" | "processing" | "results";
 
+interface Classroom {
+  id: string;
+  name: string;
+}
+
+interface AttendancePerson {
+  id: string;
+  name: string;
+  confidence?: number;
+}
+
+interface AttendanceResults {
+  recognized: AttendancePerson[];
+  absent: AttendancePerson[];
+  unknown_faces_count: number;
+}
+
 const processingSteps = [
-  { label: "Detecting Faces", icon: Scan, color: "from-primary to-purple-500" },
-  { label: "Matching Faces", icon: UserCheck, color: "from-purple-500 to-pink-500" },
-  { label: "Verifying Identity", icon: Check, color: "from-pink-500 to-orange-500" },
-  { label: "Generating Attendance", icon: Clock, color: "from-orange-500 to-yellow-500" },
+  { label: "Detecting Faces", icon: Scan },
+  { label: "Matching Faces", icon: UserCheck },
+  { label: "Verifying Identity", icon: Check },
+  { label: "Generating Attendance", icon: Clock },
 ];
 
 export default function MarkAttendancePage() {
@@ -24,19 +42,25 @@ export default function MarkAttendancePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [stepProgress, setStepProgress] = useState(0);
-  const [results, setResults] = useState<any>(null);
-  const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [results, setResults] = useState<AttendanceResults | null>(null);
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchStudents();
+    void loadClassrooms();
   }, []);
 
-  const fetchStudents = async () => {
+  const loadClassrooms = async () => {
     try {
-      const response = await studentApi.getAll();
-      setAllStudents(response.data);
+      const response = await classroomApi.getAll();
+      setClassrooms(response.data);
+      if (response.data.length > 0) {
+        setSelectedClassId(response.data[0].id);
+      }
     } catch (error) {
-      console.error("Failed to fetch students:", error);
+      console.error("Failed to fetch classrooms:", error);
+      toast.error("Failed to load classrooms");
     }
   };
 
@@ -49,45 +73,62 @@ export default function MarkAttendancePage() {
     reader.readAsDataURL(file);
   };
 
+  const resetFlow = () => {
+    setPhase("upload");
+    setPreview(null);
+    setSelectedFile(null);
+    setResults(null);
+    setCurrentStep(0);
+    setStepProgress(0);
+  };
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith("image/")) handleFile(file);
+    if (file && file.type.startsWith("image/")) {
+      handleFile(file);
+    }
   }, []);
 
   const startRecognition = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !selectedClassId) return;
 
     setPhase("processing");
     setCurrentStep(0);
     setStepProgress(25);
 
     try {
-      // Step 0: Already in progress (Detecting)
-      await new Promise(r => setTimeout(r, 500));
-
-      // Step 1: Matching
+      await new Promise((resolve) => setTimeout(resolve, 500));
       setCurrentStep(1);
       setStepProgress(50);
 
-      const response = await attendanceApi.uploadPhoto(selectedFile);
+      const response = await attendanceApi.uploadPhoto(selectedFile, selectedClassId);
 
-      // Step 2: Verifying
       setCurrentStep(2);
       setStepProgress(75);
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-      setResults(response.data);
+      const data = response.data;
+      setResults({
+        recognized: (data.recognized_student_ids || []).map((id: string, index: number) => ({
+          id,
+          name: data.recognized_students[index],
+          confidence: data.confidence_scores[index],
+        })),
+        absent: (data.absent_student_ids || []).map((id: string, index: number) => ({
+          id,
+          name: data.absent_students[index],
+        })),
+        unknown_faces_count: data.unknown_faces_count || 0,
+      });
 
-      // Step 3: Generating
       setCurrentStep(3);
       setStepProgress(100);
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       setPhase("results");
-      toast.success("Attendance marked successfully!");
-
+      toast.success("Attendance processed successfully");
     } catch (error: any) {
       console.error("Recognition failed:", error);
       toast.error(error.response?.data?.detail || "Recognition failed");
@@ -95,41 +136,114 @@ export default function MarkAttendancePage() {
     }
   };
 
-  const getStudentName = (id: string) => {
-    const student = allStudents.find(s => s.id === id);
-    return student ? student.name : `Student ${id.substring(0, 4)}`;
+  const moveToAbsent = (student: AttendancePerson) => {
+    if (!results) return;
+    setResults({
+      ...results,
+      recognized: results.recognized.filter((person) => person.id !== student.id),
+      absent: [...results.absent, { id: student.id, name: student.name }],
+    });
+    toast.info(`${student.name} marked as absent`);
   };
 
-  const recognizedCount = results?.recognized_students?.length || 0;
-  const absentCount = results?.absent_students?.length || 0;
-  const avgConfidence = results?.confidence_scores?.length
-    ? (results.confidence_scores.reduce((a: number, b: number) => a + b, 0) / results.confidence_scores.length * 100).toFixed(1)
-    : "0";
+  const moveToPresent = (student: AttendancePerson) => {
+    if (!results) return;
+    setResults({
+      ...results,
+      absent: results.absent.filter((person) => person.id !== student.id),
+      recognized: [...results.recognized, { id: student.id, name: student.name, confidence: 1 }],
+    });
+    toast.success(`${student.name} marked as present`);
+  };
+
+  const confirmAttendance = async () => {
+    if (!results || !selectedClassId) return;
+
+    setSaving(true);
+    try {
+      await attendanceApi.finalize({
+        class_id: selectedClassId,
+        present_student_ids: results.recognized.map((student) => student.id),
+        absent_student_ids: results.absent.map((student) => student.id),
+      });
+      toast.success("Attendance confirmed and saved");
+    } catch (error: any) {
+      console.error("Failed to finalize attendance:", error);
+      toast.error(error.response?.data?.detail || "Failed to save attendance");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const downloadSummary = () => {
+    if (!results) return;
+    const lines = [
+      ["Status", "Name", "Confidence"],
+      ...results.recognized.map((student) => ["Present", student.name, student.confidence ? `${(student.confidence * 100).toFixed(1)}%` : "Manual"]),
+      ...results.absent.map((student) => ["Absent", student.name, "-"]),
+    ];
+    const csv = lines.map((line) => line.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "attendance-summary.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Attendance summary downloaded");
+  };
+
+  const recognizedCount = results?.recognized.length || 0;
+  const absentCount = results?.absent.length || 0;
+  const avgConfidence = useMemo(() => {
+    if (!results || results.recognized.length === 0) return "0";
+    const scored = results.recognized.filter((student) => typeof student.confidence === "number");
+    if (scored.length === 0) return "0";
+    return ((scored.reduce((total, student) => total + (student.confidence || 0), 0) / scored.length) * 100).toFixed(1);
+  }, [results]);
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center shadow-lg shadow-primary/25">
-            <Scan className="h-5 w-5 text-primary-foreground" />
+      <motion.div 
+        className="space-y-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+          <div className="flex flex-col">
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Mark Attendance</h1>
+            <p className="text-gray-500 mt-1">Upload a classroom photo to auto-detect attendance</p>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Mark Attendance</h1>
-            <p className="text-muted-foreground text-sm">Upload a classroom photo to auto-detect attendance</p>
+          <div className="w-full md:w-72">
+            <p className="text-sm font-semibold text-gray-700 mb-2">Classroom</p>
+            <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+              <SelectTrigger className="bg-white border-gray-200 shadow-sm">
+                <SelectValue placeholder="Select classroom" />
+              </SelectTrigger>
+              <SelectContent>
+                {classrooms.map((classroom) => (
+                  <SelectItem key={classroom.id} value={classroom.id}>
+                    {classroom.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
         {phase === "upload" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="card-elevated">
-              <CardHeader><CardTitle className="text-base font-semibold">Upload Classroom Photo</CardTitle></CardHeader>
-              <CardContent>
+            <div className="card-elevated bg-white">
+              <div className="p-6 border-b border-gray-100">
+                <h2 className="text-lg font-bold text-gray-900">Upload Classroom Photo</h2>
+              </div>
+              <div className="p-6">
                 <div
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-2xl p-14 text-center transition-all cursor-pointer relative overflow-hidden ${dragOver ? "border-primary bg-primary/5" : "border-border/60 hover:border-primary/40 hover:bg-muted/30"
-                    }`}
+                  className={`border-2 border-dashed rounded-2xl p-14 text-center transition-all cursor-pointer relative overflow-hidden ${dragOver ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"}`}
                   onClick={() => document.getElementById("file-input")?.click()}
                 >
                   <input
@@ -142,191 +256,182 @@ export default function MarkAttendancePage() {
                       if (file) handleFile(file);
                     }}
                   />
-                  <div className="h-14 w-14 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                    <Upload className="h-7 w-7 text-primary" />
+                  <div className="h-16 w-16 mx-auto rounded-full bg-gray-100 flex items-center justify-center mb-4 text-gray-400">
+                    <Upload className="h-8 w-8" />
                   </div>
-                  <p className="text-sm font-semibold text-foreground">
-                    {selectedFile ? selectedFile.name : "Drag & drop or click to upload"}
+                  <p className="text-sm font-semibold text-gray-900">
+                    {selectedFile ? selectedFile.name : "Drag and drop or click to upload"}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1.5">PNG, JPG up to 10MB</p>
+                  <p className="text-xs text-gray-500 mt-1.5">PNG or JPG up to 10MB</p>
                 </div>
                 {preview && (
-                  <div className="mt-4 relative rounded-xl overflow-hidden shadow-lg">
+                  <div className="mt-4 relative rounded-xl overflow-hidden shadow-sm border border-gray-200">
                     <img src={preview} alt="Preview" className="w-full max-h-48 object-cover" />
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="absolute top-2 right-2 bg-background/80 hover:bg-background rounded-lg backdrop-blur-sm"
-                      onClick={(e) => { e.stopPropagation(); setPreview(null); setSelectedFile(null); }}
+                      className="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-700 rounded-lg shadow-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPreview(null);
+                        setSelectedFile(null);
+                      }}
                     >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
                 )}
                 <Button
-                  className="w-full mt-4 h-11 gradient-primary text-primary-foreground border-0 font-semibold shadow-lg shadow-primary/20"
-                  disabled={!preview}
+                  className="w-full mt-6 h-12 bg-primary hover:bg-primary/90 text-white font-semibold rounded-xl text-md"
+                  disabled={!preview || !selectedClassId}
                   onClick={startRecognition}
                 >
-                  <Sparkles className="h-4 w-4 mr-2" />
+                  <Sparkles className="h-5 w-5 mr-2" />
                   Start AI Recognition
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <Card className="card-elevated">
-              <CardHeader>
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-primary" /> How It Works
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {processingSteps.map((step, i) => (
-                  <div key={step.label} className="flex items-center gap-4 group">
-                    <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${step.color} flex items-center justify-center text-primary-foreground shrink-0 shadow-md group-hover:scale-110 transition-transform duration-200`}>
-                      <step.icon className="h-5 w-5" />
+            <div className="card-elevated bg-white flex flex-col">
+              <div className="p-6 border-b border-gray-100 flex items-center gap-2">
+                <Zap className="h-5 w-5 text-yellow-500" /> 
+                <h2 className="text-lg font-bold text-gray-900">How It Works</h2>
+              </div>
+              <div className="p-6 space-y-6 flex-1">
+                {processingSteps.map((step, index) => (
+                  <div key={step.label} className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-gray-50 flex items-center justify-center shrink-0 border border-gray-100">
+                      <step.icon className="h-6 w-6 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Step {i + 1}: {step.label}</p>
-                      <p className="text-xs text-muted-foreground">AI-powered automated process</p>
+                      <p className="font-semibold text-gray-900">Step {index + 1}: {step.label}</p>
+                      <p className="text-sm text-gray-500 mt-0.5">Automated deep learning process</p>
                     </div>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         )}
 
         {phase === "processing" && (
-          <Card className="card-glow max-w-lg mx-auto overflow-hidden">
-            <CardContent className="p-8 space-y-6 relative">
+          <div className="card-elevated max-w-lg mx-auto overflow-hidden bg-white">
+            <div className="p-10 space-y-8">
               <div className="text-center">
-                <div className="h-20 w-20 mx-auto rounded-2xl gradient-primary flex items-center justify-center mb-5 shadow-xl shadow-primary/30 glow-primary">
-                  <Scan className="h-10 w-10 text-primary-foreground animate-pulse" />
+                <div className="h-24 w-24 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-6">
+                  <Scan className="h-12 w-12 text-primary animate-pulse" />
                 </div>
-                <h2 className="text-xl font-bold text-foreground">Processing Image...</h2>
-                <p className="text-sm text-muted-foreground mt-1">Analyzing faces in the classroom photo</p>
+                <h2 className="text-2xl font-bold text-gray-900">Processing Image...</h2>
+                <p className="text-gray-500 mt-2">Analyzing faces and matching records</p>
               </div>
-              <div className="space-y-4">
-                {processingSteps.map((step, i) => (
-                  <div key={step.label} className="flex items-center gap-3">
-                    <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${i < currentStep ? "bg-green-500 text-white" :
-                        i === currentStep ? "gradient-primary text-white" :
-                          "bg-muted text-muted-foreground"
-                      }`}>
-                      {i < currentStep ? <Check className="h-4 w-4" /> : <step.icon className="h-4 w-4" />}
+              <div className="space-y-5">
+                {processingSteps.map((step, index) => (
+                  <div key={step.label} className="flex items-center gap-4">
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 transition-colors ${index < currentStep ? "bg-green-100 text-green-600" : index === currentStep ? "bg-primary text-white" : "bg-gray-100 text-gray-400"}`}>
+                      {index < currentStep ? <Check className="h-5 w-5" /> : <step.icon className="h-5 w-5" />}
                     </div>
                     <div className="flex-1">
-                      <p className={`text-sm transition-all ${i <= currentStep ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
+                      <p className={`font-semibold transition-colors ${index <= currentStep ? "text-gray-900" : "text-gray-400"}`}>
                         {step.label}
                       </p>
-                      {i === currentStep && <Progress value={stepProgress} className="h-1.5 mt-1.5" />}
+                      {index === currentStep && <Progress value={stepProgress} className="h-2 mt-2" />}
                     </div>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
-        {phase === "results" && (
+        {phase === "results" && results && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {[
-                { label: "Recognized", value: recognizedCount, color: "from-primary/15 to-purple-500/10", icon: UserCheck, iconColor: "text-primary" },
-                { label: "Unknown Faces", value: results?.unknown_faces_count || 0, color: "from-gray-500/15 to-slate-400/10", icon: Scan, iconColor: "text-muted-foreground" },
-                { label: "Absent", value: absentCount, color: "from-red-500/15 to-orange-400/10", icon: UserX, iconColor: "text-destructive" },
-                { label: "Avg. Confidence", value: `${avgConfidence}%`, color: "from-emerald-500/15 to-green-400/10", icon: Check, iconColor: "text-success" },
-                { label: "Timestamp", value: "Now", color: "from-amber-500/15 to-yellow-400/10", icon: Clock, iconColor: "text-warning" },
+                { label: "Recognized", value: recognizedCount, icon: UserCheck, color: "text-primary", bg: "bg-primary/10" },
+                { label: "Unknown", value: results.unknown_faces_count, icon: Scan, color: "text-gray-500", bg: "bg-gray-100" },
+                { label: "Absent", value: absentCount, icon: UserX, color: "text-red-500", bg: "bg-red-50" },
+                { label: "Avg Confidence", value: `${avgConfidence}%`, icon: Check, color: "text-green-500", bg: "bg-green-50" },
+                { label: "Date", value: "Today", icon: Clock, color: "text-yellow-600", bg: "bg-yellow-50" },
               ].map((item) => (
-                <Card key={item.label} className="card-elevated overflow-hidden relative">
-                  <div className={`absolute inset-0 bg-gradient-to-br ${item.color}`} />
-                  <CardContent className="p-4 text-center relative">
-                    <item.icon className={`h-5 w-5 mx-auto mb-2 ${item.iconColor}`} />
-                    <p className="text-xl font-extrabold text-foreground">{item.value}</p>
-                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{item.label}</p>
-                  </CardContent>
-                </Card>
+                <div key={item.label} className="card-elevated p-5 flex flex-col items-center justify-center text-center bg-white">
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center mb-3 ${item.bg} ${item.color}`}>
+                    <item.icon className="h-5 w-5" />
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">{item.value}</p>
+                  <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide mt-1">{item.label}</p>
+                </div>
               ))}
             </div>
 
-            <Card className="card-elevated">
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <CardTitle className="text-base font-semibold">Attendance Results</CardTitle>
+            <div className="card-elevated bg-white">
+              <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <h2 className="text-xl font-bold text-gray-900">Attendance Results</h2>
                 <div className="flex gap-2">
-                  <Badge className="bg-green-500/10 text-green-600 border-0 font-semibold">{recognizedCount} Present</Badge>
-                  {results?.unknown_faces_count > 0 && (
-                    <Badge className="bg-gray-500/10 text-gray-600 border-0 font-semibold">{results.unknown_faces_count} Unknown Detected</Badge>
+                  <span className="bg-green-100 text-green-700 px-3 py-1 rounded-md text-xs font-bold">{recognizedCount} Present</span>
+                  {results.unknown_faces_count > 0 && (
+                    <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-md text-xs font-bold">{results.unknown_faces_count} Unknown Detected</span>
                   )}
-                  <Badge className="bg-red-500/10 text-red-600 border-0 font-semibold">{absentCount} Absent</Badge>
+                  <span className="bg-red-100 text-red-700 px-3 py-1 rounded-md text-xs font-bold">{absentCount} Absent</span>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                  {results?.recognized_students?.map((name: string, index: number) => (
-                    <div 
-                      key={`present-${index}`} 
-                      className="rounded-xl border p-3.5 flex items-center gap-3 transition-all duration-200 hover:shadow-md cursor-pointer border-green-500/20 bg-green-500/5 hover:bg-green-500/10"
-                      onClick={() => {
-                        const newRecognized = results.recognized_students.filter((n: string) => n !== name);
-                        const newAbsent = [...results.absent_students, name];
-                        setResults({...results, recognized_students: newRecognized, absent_students: newAbsent});
-                        toast.info(`${name} marked as Absent`);
-                      }}
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {results.recognized.map((student) => (
+                    <div
+                      key={`present-${student.id}`}
+                      className="rounded-xl border p-4 flex items-center gap-3 transition-all cursor-pointer border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                      onClick={() => moveToAbsent(student)}
                     >
-                      <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold shadow-sm bg-green-500/20 text-green-600">
-                        {name.split(" ").map((n: string) => n[0]).join("")}
+                      <div className="h-10 w-10 rounded-full flex items-center justify-center shrink-0 text-sm font-bold bg-green-100 text-green-700">
+                        {student.name.split(" ").map((part) => part[0]).join("")}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-foreground truncate">{name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-600">Present</Badge>
-                          <span className="text-[10px] text-muted-foreground font-medium">{results.confidence_scores[index] ? (results.confidence_scores[index] * 100).toFixed(1) : "Manually"}%</span>
+                        <p className="text-sm font-bold text-gray-900 truncate">{student.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700 uppercase">Present</span>
+                          <span className="text-xs text-gray-500 font-medium">
+                            {typeof student.confidence === "number" ? `${(student.confidence * 100).toFixed(1)}%` : "Manual"}
+                          </span>
                         </div>
                       </div>
                     </div>
                   ))}
-                  {results?.absent_students?.map((name: string, index: number) => (
-                    <div 
-                      key={`absent-${index}`} 
-                      className="rounded-xl border p-3.5 flex items-center gap-3 transition-all duration-200 hover:shadow-md cursor-pointer border-red-500/20 bg-red-500/5 hover:bg-red-500/10"
-                      onClick={() => {
-                        const newAbsent = results.absent_students.filter((n: string) => n !== name);
-                        const newRecognized = [...results.recognized_students, name];
-                        setResults({...results, recognized_students: newRecognized, absent_students: newAbsent});
-                        toast.success(`${name} manually marked as Present`);
-                      }}
+                  {results.absent.map((student) => (
+                    <div
+                      key={`absent-${student.id}`}
+                      className="rounded-xl border p-4 flex items-center gap-3 transition-all cursor-pointer border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                      onClick={() => moveToPresent(student)}
                     >
-                      <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold shadow-sm bg-red-500/20 text-red-600">
-                        {name.split(" ").map((n: string) => n[0]).join("")}
+                      <div className="h-10 w-10 rounded-full flex items-center justify-center shrink-0 text-sm font-bold bg-red-100 text-red-700">
+                        {student.name.split(" ").map((part) => part[0]).join("")}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-foreground truncate">{name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-red-500/10 text-red-600">Absent</Badge>
-                          <p className="text-[10px] text-muted-foreground">Click to mark Present</p>
+                        <p className="text-sm font-bold text-gray-900 truncate">{student.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-700 uppercase">Absent</span>
+                          <span className="text-xs text-gray-400 font-medium cursor-pointer hover:text-gray-600 transition-colors">Click to mark present</span>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Button className="gradient-primary text-primary-foreground border-0 shadow-lg shadow-primary/20 font-semibold" onClick={() => toast.success("Attendance confirmed!")}>
-                <Check className="h-4 w-4 mr-2" /> Confirm Attendance
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button className="h-12 px-8 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl text-md" onClick={confirmAttendance} disabled={saving}>
+                <Check className="h-5 w-5 mr-2" /> {saving ? "Saving..." : "Confirm Attendance"}
               </Button>
-              <Button variant="outline" className="font-medium" onClick={() => { setPhase("upload"); setPreview(null); setSelectedFile(null); }}>
+              <Button variant="outline" className="h-12 px-6 font-semibold rounded-xl text-gray-700 bg-white" onClick={resetFlow}>
                 <RefreshCw className="h-4 w-4 mr-2" /> Re-scan
               </Button>
-              <Button variant="outline" className="font-medium" onClick={() => toast.success("Report downloaded!")}>
+              <Button variant="outline" className="h-12 px-6 font-semibold rounded-xl text-gray-700 bg-white" onClick={downloadSummary}>
                 <Download className="h-4 w-4 mr-2" /> Download Report
               </Button>
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
     </DashboardLayout>
   );
 }

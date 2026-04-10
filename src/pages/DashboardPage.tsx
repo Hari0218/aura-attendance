@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserCheck, UserX, TrendingUp, TrendingDown, ArrowUpRight } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Badge } from "@/components/ui/badge";
+import { Users, UserCheck, UserX, TrendingUp } from "lucide-react";
 import { reportsApi, attendanceApi } from "@/lib/api";
-import { toast } from "sonner";
+import { motion } from "framer-motion";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
@@ -45,81 +42,82 @@ export default function DashboardPage() {
     : 0;
 
   const statCards = [
-    { title: "Total Students", value: totalStudents, icon: Users, gradient: "from-primary/15 to-purple-500/10", iconBg: "gradient-primary", iconColor: "text-primary-foreground" },
-    { title: "Present Today", value: presentToday, icon: UserCheck, gradient: "from-emerald-500/15 to-green-400/10", iconBg: "gradient-success", iconColor: "text-success-foreground" },
-    { title: "Absent Today", value: absentToday, icon: UserX, gradient: "from-red-500/15 to-orange-400/10", iconBg: "gradient-warm", iconColor: "text-destructive-foreground" },
-    { title: "Attendance %", value: `${attendanceRate}%`, icon: TrendingUp, gradient: "from-primary/15 to-cyan-400/10", iconBg: "gradient-primary", iconColor: "text-primary-foreground" },
+    { title: "Total Students", value: totalStudents, icon: Users },
+    { title: "Present Today", value: presentToday, icon: UserCheck },
+    { title: "Absent Today", value: absentToday, icon: UserX },
+    { title: "Attendance", value: `${attendanceRate}%`, icon: TrendingUp },
   ];
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground text-sm">Overview of today's attendance</p>
-          </div>
-          <Badge className="gradient-primary text-primary-foreground border-0 px-3 py-1 shadow-lg shadow-primary/20">
-            <span className="w-2 h-2 rounded-full bg-primary-foreground/80 animate-pulse mr-2" />
-            Live
-          </Badge>
+      <motion.div 
+        className="space-y-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="flex flex-col mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
+          <p className="text-gray-500 mt-1">Real-time attendance overview</p>
         </div>
 
         {/* Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {statCards.map((stat) => (
-            <Card key={stat.title} className="card-elevated overflow-hidden group hover:card-glow transition-all duration-300">
-              <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-              <CardContent className="p-5 relative">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground font-medium">{stat.title}</p>
-                    <p className="text-3xl font-extrabold text-foreground">{loading ? "..." : stat.value}</p>
-                  </div>
-                  <div className={`h-12 w-12 rounded-xl ${stat.iconBg} flex items-center justify-center shadow-lg`}>
-                    <stat.icon className={`h-6 w-6 ${stat.iconColor}`} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {statCards.map((stat, idx) => (
+            <div key={idx} className="card-elevated p-6 flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-gray-500">{stat.title}</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {loading ? "..." : stat.value}
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <stat.icon className="h-6 w-6 text-primary" />
+              </div>
+            </div>
           ))}
         </div>
 
         {/* Today's Attendance List */}
-        <Card className="card-elevated">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Today's Attendance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {todayRecords.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Users className="h-10 w-10 mb-3 opacity-30" />
-                <p className="text-sm">No attendance recorded today</p>
-                <p className="text-xs mt-1 text-muted-foreground">Upload a classroom photo to mark attendance</p>
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Today's Attendance</h2>
+          {todayRecords.length === 0 ? (
+            <div className="card-elevated p-12 flex flex-col items-center justify-center text-center">
+              <div className="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center mb-4">
+                <Users className="h-8 w-8 text-gray-400" />
               </div>
-            ) : (
-              <div className="space-y-2">
-                {todayRecords.map((record: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between rounded-xl p-3 hover:bg-muted/50 transition-all">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${record.status === "PRESENT" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
-                        {record.status === "PRESENT" ? <UserCheck className="h-4 w-4" /> : <UserX className="h-4 w-4" />}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{record.student_name || record.student_id}</p>
-                        <p className="text-xs text-muted-foreground">{record.roll_number || ""}</p>
-                      </div>
+              <p className="text-gray-900 font-medium">No records yet</p>
+              <p className="text-gray-500 text-sm mt-1">Attendance data will appear here.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {todayRecords.map((record: any, i: number) => (
+                <div 
+                  key={i} 
+                  className="card-elevated p-4 flex items-center justify-between hover:border-gray-200"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 flex-shrink-0 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-sm">
+                      {(record.student_name || record.student_id).substring(0, 2).toUpperCase()}
                     </div>
-                    <Badge className={`border-0 font-semibold ${record.status === "PRESENT" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
-                      {record.status}
-                    </Badge>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">{record.student_name || record.student_id}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{record.roll_number || "ID UNKNOWN"}</p>
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  <div className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                    record.status === "PRESENT" 
+                      ? "bg-green-100 text-green-700" 
+                      : "bg-red-100 text-red-700"
+                  }`}>
+                    {record.status === "PRESENT" ? "PRESENT" : "ABSENT"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
     </DashboardLayout>
   );
 }

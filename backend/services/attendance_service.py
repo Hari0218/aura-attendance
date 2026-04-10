@@ -14,6 +14,35 @@ UPLOAD_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'uploads', 'stu
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
+def correct_orientation(image_bytes):
+    """Correct image orientation based on EXIF data."""
+    from PIL import Image, ExifTags
+    import io
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        try:
+            for orientation in ExifTags.TAGS.keys():
+                if ExifTags.TAGS[orientation] == 'Orientation':
+                    break
+            exif = dict(img._getexif().items())
+            if exif[orientation] == 3:
+                img = img.rotate(180, expand=True)
+            elif exif[orientation] == 6:
+                img = img.rotate(270, expand=True)
+            elif exif[orientation] == 8:
+                img = img.rotate(90, expand=True)
+        except (AttributeError, KeyError, IndexError, TypeError):
+            # No EXIF or no orientation tag
+            pass
+        
+        # Convert back to CV2 format
+        img = img.convert('RGB')
+        return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    except Exception as e:
+        logger.warning(f"Orientation correction failed: {e}")
+        return None
+
+
 async def register_student_face(db: AsyncIOMotorDatabase, student_id: str, image_bytes: bytes):
     """Process student face image, extract embedding, and store in DB."""
     # Verify student exists
@@ -21,9 +50,12 @@ async def register_student_face(db: AsyncIOMotorDatabase, student_id: str, image
     if not student:
         return False, "Student not found"
 
-    # Convert bytes to cv2 image
-    nparr = np.frombuffer(image_bytes, np.uint8)
-    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    # Convert bytes to cv2 image and correct orientation
+    image = correct_orientation(image_bytes)
+    if image is None:
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
     if image is None:
         return False, "Invalid image data"
 
@@ -83,33 +115,7 @@ async def _retrain_classifier(db: AsyncIOMotorDatabase):
     return face_system.train_classifier(X, y)
 
 
-def correct_orientation(image_bytes):
-    """Correct image orientation based on EXIF data."""
-    from PIL import Image, ExifTags
-    import io
-    try:
-        img = Image.open(io.BytesIO(image_bytes))
-        try:
-            for orientation in ExifTags.TAGS.keys():
-                if ExifTags.TAGS[orientation] == 'Orientation':
-                    break
-            exif = dict(img._getexif().items())
-            if exif[orientation] == 3:
-                img = img.rotate(180, expand=True)
-            elif exif[orientation] == 6:
-                img = img.rotate(270, expand=True)
-            elif exif[orientation] == 8:
-                img = img.rotate(90, expand=True)
-        except (AttributeError, KeyError, IndexError):
-            # No EXIF or no orientation tag
-            pass
-        
-        # Convert back to CV2 format
-        img = img.convert('RGB')
-        return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-    except Exception as e:
-        logger.warning(f"Orientation correction failed: {e}")
-        return None
+
 
 async def process_attendance(db: AsyncIOMotorDatabase, classroom_image_bytes: bytes, class_id: str = None):
     """Process classroom photo, identify students, and mark attendance."""
@@ -141,16 +147,19 @@ async def process_attendance(db: AsyncIOMotorDatabase, classroom_image_bytes: by
 
     # Fetch all students for name resolution
     all_students_data = await db.students.find().to_list(length=5000)
-    student_map = {s["_id"]: s["name"] for s in all_students_data}
+    student_map = {s["_id"]: s for s in all_students_data}
 
     for i, face in enumerate(faces):
         embedding = face_system.extract_embeddings(face_image=face['image'])
         student_id, confidence = face_system.predict(embedding, student_embeddings=student_embeddings)
         
-        student_name = student_map.get(student_id, "Unknown")
+        student_name = student_map.get(student_id, {}).get("name", "Unknown")
         logger.info(f"Face {i+1}: Result={student_name} ({student_id}), Confidence={confidence:.4f}")
 
         if student_id != "Unknown":
+            if class_id and student_map.get(student_id, {}).get("class_id") != class_id:
+                unknown_count += 1
+                continue
             if student_id not in best_matches or confidence > best_matches[student_id]:
                 best_matches[student_id] = confidence
         else:
@@ -209,6 +218,8 @@ async def process_attendance(db: AsyncIOMotorDatabase, classroom_image_bytes: by
     return {
         "recognized_students": recognized_names,
         "absent_students": absent_names,
+        "recognized_student_ids": recognized_students,
+        "absent_student_ids": absent_students,
         "confidence_scores": confidence_scores,
         "unknown_faces_count": unknown_count
     }, f"Attendance processed: {len(recognized_students)} present, {len(absent_students)} absent"

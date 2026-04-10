@@ -6,6 +6,7 @@ from models import schemas
 from .auth import get_current_user
 from typing import List, Optional
 import datetime
+from models.models import attendance_doc
 
 router = APIRouter()
 
@@ -105,3 +106,59 @@ async def get_attendance_history(
         })
 
     return results
+
+
+@router.post("/finalize")
+async def finalize_attendance(
+    payload: schemas.AttendanceFinalizeRequest,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Persist the final present/absent selection for today's attendance."""
+    today_start = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    present_ids = list(dict.fromkeys(payload.present_student_ids))
+    absent_ids = [student_id for student_id in dict.fromkeys(payload.absent_student_ids) if student_id not in present_ids]
+
+    query = {}
+    if payload.class_id:
+        query["class_id"] = payload.class_id
+
+    students = await db.students.find(query).to_list(length=5000)
+    valid_student_ids = {student["_id"] for student in students}
+
+    invalid_ids = [student_id for student_id in present_ids + absent_ids if student_id not in valid_student_ids]
+    if invalid_ids:
+        raise HTTPException(status_code=400, detail="Attendance list contains students outside the selected classroom")
+
+    for student_id in present_ids:
+        existing = await db.attendance.find_one({
+            "student_id": student_id,
+            "date": {"$gte": today_start}
+        })
+        if existing:
+            await db.attendance.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {"status": "PRESENT", "confidence": max(existing.get("confidence", 0.0), 1.0)}}
+            )
+        else:
+            await db.attendance.insert_one(attendance_doc(student_id=student_id, status="PRESENT", confidence=1.0))
+
+    for student_id in absent_ids:
+        existing = await db.attendance.find_one({
+            "student_id": student_id,
+            "date": {"$gte": today_start}
+        })
+        if existing:
+            await db.attendance.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {"status": "ABSENT", "confidence": 0.0}}
+            )
+        else:
+            await db.attendance.insert_one(attendance_doc(student_id=student_id, status="ABSENT", confidence=0.0))
+
+    return {
+        "message": "Attendance finalized successfully",
+        "present_count": len(present_ids),
+        "absent_count": len(absent_ids)
+    }

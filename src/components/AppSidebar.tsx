@@ -40,16 +40,17 @@ export function AppSidebar() {
   const location = useLocation();
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+    <Sidebar collapsible="icon" className="border-r border-gray-100 bg-white">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl gradient-primary shadow-lg shadow-primary/25">
-            <Camera className="h-5 w-5 text-primary-foreground" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Camera className="h-5 w-5" />
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-sm font-extrabold text-gradient">AttendAI</span>
-              <span className="text-xs text-muted-foreground">Smart Attendance</span>
+              <span className="text-xl font-bold tracking-tight text-gray-900">
+                AttendAI <span className="inline-block w-2 h-2 rounded-full bg-primary ml-0.5" />
+              </span>
             </div>
           )}
         </div>
@@ -64,22 +65,22 @@ export function AppSidebar() {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild tooltip={item.title}>
                       <NavLink
-                        to={item.url}
-                        end
-                        className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 ${
-                          isActive
-                            ? "bg-primary/10 text-primary font-semibold shadow-sm"
-                            : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                        }`}
-                        activeClassName=""
+                         to={item.url}
+                         end
+                         className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 overflow-hidden ${
+                           isActive
+                             ? "bg-primary/10 text-primary font-semibold"
+                             : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                         }`}
+                         activeClassName=""
                       >
-                        <div className={`shrink-0 ${isActive ? "drop-shadow-[0_0_6px_hsl(var(--primary)/0.4)]" : ""}`}>
-                          <item.icon className="h-4 w-4" />
-                        </div>
-                        {!collapsed && <span>{item.title}</span>}
-                        {isActive && !collapsed && (
-                          <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary)/0.5)]" />
-                        )}
+                         {isActive && (
+                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-md" />
+                         )}
+                         <div className={`shrink-0 z-10 ${isActive ? "text-primary" : "text-gray-400 group-hover:text-gray-900"}`}>
+                           <item.icon className="h-5 w-5" />
+                         </div>
+                         {!collapsed && <span className="z-10">{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -91,12 +92,9 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-4">
         {!collapsed && (
-          <div className="rounded-xl border border-primary/10 bg-primary/5 p-3.5">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 rounded-full bg-success shadow-[0_0_6px_hsl(var(--success)/0.5)] animate-pulse" />
-              <p className="text-xs font-semibold text-foreground">AI-Powered</p>
-            </div>
-            <p className="text-xs text-muted-foreground">Face Recognition v2.1</p>
+          <div className="flex items-center gap-2 justify-center py-2 px-3 bg-primary/5 rounded-full border border-primary/10">
+            <div className="h-2 w-2 rounded-full bg-primary" />
+            <span className="text-xs font-semibold text-primary">AI Powered</span>
           </div>
         )}
       </SidebarFooter>

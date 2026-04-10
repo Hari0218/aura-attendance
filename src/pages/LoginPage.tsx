@@ -1,37 +1,31 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Scan, Sparkles } from "lucide-react";
+import { authApi, authStorage } from "@/lib/api";
+import { toast } from "sonner";
 
 function FaceIllustration() {
   return (
     <div className="relative w-72 h-72">
-      {/* Ambient glow */}
       <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/20 via-purple-500/10 to-cyan-400/20 blur-3xl animate-glow-pulse" />
-
-      {/* Face outline */}
       <div className="absolute inset-8 rounded-full border-2 border-primary/40 animate-float shadow-[0_0_40px_hsl(243_75%_59%/0.15)]">
         <div className="absolute inset-3 rounded-full border border-primary/20" />
         <div className="absolute inset-6 rounded-full border border-primary/10" />
-        {/* Eyes */}
         <div className="absolute top-[35%] left-[25%] w-3.5 h-3.5 rounded-full bg-primary/60 shadow-[0_0_12px_hsl(243_75%_59%/0.5)]" />
         <div className="absolute top-[35%] right-[25%] w-3.5 h-3.5 rounded-full bg-primary/60 shadow-[0_0_12px_hsl(243_75%_59%/0.5)]" />
-        {/* Mouth */}
         <div className="absolute bottom-[28%] left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20" />
       </div>
-      {/* Scanning lines */}
       <div className="absolute inset-0 overflow-hidden rounded-full">
         <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary/80 to-transparent animate-scan-line shadow-[0_0_20px_hsl(243_75%_59%/0.6)]" />
       </div>
-      {/* Corner brackets with glow */}
       <div className="absolute top-3 left-3 w-8 h-8 border-l-2 border-t-2 border-primary/70 rounded-tl-lg shadow-[0_0_10px_hsl(243_75%_59%/0.3)]" />
       <div className="absolute top-3 right-3 w-8 h-8 border-r-2 border-t-2 border-primary/70 rounded-tr-lg shadow-[0_0_10px_hsl(243_75%_59%/0.3)]" />
       <div className="absolute bottom-3 left-3 w-8 h-8 border-l-2 border-b-2 border-primary/70 rounded-bl-lg shadow-[0_0_10px_hsl(243_75%_59%/0.3)]" />
       <div className="absolute bottom-3 right-3 w-8 h-8 border-r-2 border-b-2 border-primary/70 rounded-br-lg shadow-[0_0_10px_hsl(243_75%_59%/0.3)]" />
-      {/* Floating particles */}
       {[...Array(8)].map((_, i) => (
         <div
           key={i}
@@ -43,15 +37,11 @@ function FaceIllustration() {
           }}
         />
       ))}
-      {/* Pulse rings */}
       <div className="absolute inset-0 rounded-full border border-primary/15 animate-pulse-ring" />
       <div className="absolute inset-4 rounded-full border border-primary/10 animate-pulse-ring" style={{ animationDelay: "0.5s" }} />
     </div>
   );
 }
-
-import { authApi } from "@/lib/api";
-import { toast } from "sonner";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -59,25 +49,36 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = (location.state as { from?: string } | null)?.from || "/dashboard";
+
+  useEffect(() => {
+    if (authStorage.isAuthenticated()) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       const response = await authApi.login({ email, password });
-      localStorage.setItem('token', response.data.access_token);
-      // Fetch and store user profile
+      authStorage.setSession(response.data.access_token);
       try {
         const meRes = await authApi.me();
-        localStorage.setItem('userName', meRes.data.name);
-        localStorage.setItem('userEmail', meRes.data.email);
-      } catch {}
+        authStorage.setSession(response.data.access_token, {
+          name: meRes.data.name,
+          email: meRes.data.email,
+        });
+      } catch {
+        // Session token is enough to continue if profile fetch fails.
+      }
       toast.success("Login successful!");
-      navigate("/dashboard");
+      navigate(redirectTo, { replace: true });
     } catch (error: any) {
       console.error("Login failed:", error);
       const errorMessage = error.response?.data?.detail;
-      const displayMessage = typeof errorMessage === 'string'
+      const displayMessage = typeof errorMessage === "string"
         ? errorMessage
         : Array.isArray(errorMessage)
           ? errorMessage[0]?.msg
@@ -90,17 +91,13 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Rich gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-background to-purple-500/5" />
       <div className="absolute inset-0 dot-pattern opacity-40" />
-
-      {/* Floating gradient orbs */}
       <div className="absolute top-10 left-10 w-80 h-80 bg-primary/8 rounded-full blur-[100px] animate-float" />
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-500/6 rounded-full blur-[120px] animate-float-delay" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-400/4 rounded-full blur-[150px]" />
 
       <div className="w-full max-w-5xl grid md:grid-cols-2 gap-12 items-center animate-fade-in relative z-10">
-        {/* Illustration side */}
         <div className="hidden md:flex flex-col items-center justify-center gap-8">
           <FaceIllustration />
           <div className="text-center space-y-3">
@@ -115,7 +112,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Login form */}
         <Card className="glass-card card-glow">
           <CardHeader className="space-y-1 pb-6">
             <div className="flex items-center gap-3 mb-3">
@@ -147,7 +143,7 @@ export default function LoginPage() {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
+                    placeholder="........"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -184,7 +180,7 @@ export default function LoginPage() {
                 )}
               </Button>
               <p className="text-center text-xs text-muted-foreground">
-                Secure login • 256-bit encryption
+                Secure login | 256-bit encryption
               </p>
             </form>
           </CardContent>

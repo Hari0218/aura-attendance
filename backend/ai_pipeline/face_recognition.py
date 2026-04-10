@@ -33,7 +33,8 @@ except ImportError:
 MTCNN_AVAILABLE = False
 try:
     from mtcnn import MTCNN
-    MTCNN_AVAILABLE = True
+    # Disable MTCNN due to threading issues in Python 3.13+ causing Uvicorn backend to hang
+    MTCNN_AVAILABLE = False 
 except ImportError:
     logger.warning("MTCNN not installed.")
 
@@ -66,43 +67,64 @@ class FaceRecognitionSystem:
                 logger.info("MTCNN detector initialized.")
             except Exception as e:
                 logger.error(f"Failed to initialize MTCNN: {e}")
+                
+        if DEEPFACE_AVAILABLE:
+            try:
+                logger.info("Pre-loading ArcFace model to speed up first inference...")
+                DeepFace.build_model('ArcFace')
+            except Exception as e:
+                logger.error(f"Failed to preload ArcFace: {e}")
 
         self._initialized = True
 
     def detect_faces(self, image):
-        """Detect faces in an image with multi-detector fallback."""
+        """Detect faces in an image with optimized speed and multi-detector fallback."""
         self._lazy_init()
+        
         img_h, img_w = image.shape[:2]
-        logger.info(f"--- Detection Start (Image: {img_w}x{img_h}) ---")
+        # Make detection significantly faster by resizing large images
+        max_dim = 1200
+        scale = 1.0
+        proc_image = image
+        if max(img_h, img_w) > max_dim:
+            scale = max_dim / max(img_h, img_w)
+            proc_image = cv2.resize(image, (int(img_w * scale), int(img_h * scale)))
+             
+        logger.info(f"--- Detection Start (Image: {img_w}x{img_h}, scaled to {proc_image.shape[1]}x{proc_image.shape[0]}) ---")
 
         all_faces = []
         
-        # 1. Try MTCNN
+        # 1. Fast path: MTCNN
         if self.detector is not None:
-            mtcnn_faces = self._detect_mtcnn(image)
+            mtcnn_faces = self._detect_mtcnn(proc_image)
             logger.info(f"MTCNN found {len(mtcnn_faces)} faces.")
             all_faces.extend(mtcnn_faces)
             
-        # 2. Try RetinaFace (High accuracy for crowds)
-        if DEEPFACE_AVAILABLE:
-            logger.info("Running DeepFace/RetinaFace...")
-            try:
-                rf_faces = self._detect_deepface(image, backend='retinaface')
-                logger.info(f"RetinaFace found {len(rf_faces)} faces.")
-                all_faces.extend(rf_faces)
-            except Exception as e:
-                logger.error(f"RetinaFace error: {e}")
-            
-        # 3. Last resort: OpenCV (only if nothing found yet)
+        # 2. Faster fallback path: OpenCV (skip RetinaFace as it is too slow)
         if len(all_faces) < 1 and DEEPFACE_AVAILABLE:
-            logger.info("No faces found yet. Trying DeepFace/OpenCV...")
-            cv_faces = self._detect_deepface(image, backend='opencv')
+            logger.info("MTCNN found 0 faces. Trying DeepFace/OpenCV...")
+            cv_faces = self._detect_deepface(proc_image, backend='opencv')
             all_faces.extend(cv_faces)
+
+        # Map bounding boxes back to original resolution and crop from high-res image
+        if scale != 1.0:
+            for face in all_faces:
+                x, y, w, h = face['box']
+                orig_x = int(x / scale)
+                orig_y = int(y / scale)
+                orig_w = int(w / scale)
+                orig_h = int(h / scale)
+                face['box'] = [orig_x, orig_y, orig_w, orig_h]
+                
+                y_start = max(0, orig_y)
+                y_end = min(image.shape[0], orig_y + orig_h)
+                x_start = max(0, orig_x)
+                x_end = min(image.shape[1], orig_x + orig_w)
+                face['image'] = image[y_start:y_end, x_start:x_end]
             
-        # Deduplicate overlapping boxes across different detectors
         unique_faces = self._deduplicate_faces(all_faces)
             
-        logger.info(f"--- Detection End: Total {len(unique_faces)} unique faces after merge ---")
+        logger.info(f"--- Detection End: Total {len(unique_faces)} unique faces ---")
         return unique_faces
 
     def _deduplicate_faces(self, faces, iou_threshold=0.3):
@@ -268,48 +290,46 @@ class FaceRecognitionSystem:
     def predict(self, embedding, student_embeddings=None):
         """
         Predict student identity from embedding.
-        Uses SVM if available, otherwise falls back to Cosine Similarity.
+        Uses Cosine Similarity as the primary method for accuracy.
+        SVM is used only as a secondary high-confidence check.
         """
-        # 1. Try SVM first
-        if hasattr(self.classifier, "classes_") and len(self.classifier.classes_) >= 2:
-            try:
-                probs = self.classifier.predict_proba([embedding])[0]
-                max_idx = np.argmax(probs)
-                confidence = float(probs[max_idx])
-                prediction = self.classifier.predict([embedding])[0]
-                
-                # If SVM is very confident, use it
-                if confidence > 0.6:
-                    return prediction, confidence
-            except Exception as e:
-                logger.error(f"SVM prediction error: {e}")
+        if embedding is None:
+            return "Unknown", 0.0
 
-            # exhaustive logging for debugging
-            similarities = []
-            for sid, stored_emb in student_embeddings:
-                sim = self.cosine_similarity(embedding, stored_emb)
-                similarities.append((sid, sim))
-            
-            # aggregate by student
+        # --- Always do Cosine Similarity (most reliable) ---
+        if student_embeddings:
+            # Aggregate best similarity per student (they may have multiple photos registered)
             student_best_sims = {}
             for sid, stored_emb in student_embeddings:
                 sim = self.cosine_similarity(embedding, stored_emb)
                 if sid not in student_best_sims or sim > student_best_sims[sid]:
                     student_best_sims[sid] = sim
-            
-            # Sort students by their best match
+
+            # Sort by best match
             sorted_students = sorted(student_best_sims.items(), key=lambda x: x[1], reverse=True)
             top_3 = sorted_students[:3]
-            
-            logger.info(f"Top 3 Student Matches: {top_3}")
-            
+            logger.info(f"Top 3 Cosine Matches: {top_3}")
+
             if sorted_students:
                 best_sid, max_sim = sorted_students[0]
-                if max_sim > 0.25:  # Lowered for better recall in group photos
-                    return best_sid, max_sim
-                else:
-                    logger.warning(f"Best student match {best_sid} with {max_sim:.4f} is too low.")
-        
+
+                # HIGH THRESHOLD: must be genuinely similar (prevents cartoon/random faces)
+                if max_sim < 0.40:
+                    logger.warning(f"Rejected: best match {best_sid} score {max_sim:.4f} < 0.40 threshold")
+                    return "Unknown", 0.0
+
+                # MARGIN CHECK: best match must be clearly better than 2nd best
+                # Prevents ambiguous "could be anyone" matches
+                if len(sorted_students) > 1:
+                    second_sim = sorted_students[1][1]
+                    margin = max_sim - second_sim
+                    if margin < 0.03:
+                        logger.warning(f"Rejected: margin {margin:.4f} too small (ambiguous match)")
+                        return "Unknown", 0.0
+
+                logger.info(f"Accepted: {best_sid} with score {max_sim:.4f}")
+                return best_sid, max_sim
+
         return "Unknown", 0.0
 
     @staticmethod

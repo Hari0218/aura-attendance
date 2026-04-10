@@ -59,9 +59,17 @@ class Attendance(AttendanceBase):
 class AttendanceResponse(BaseModel):
     recognized_students: List[str]
     absent_students: List[str]
+    recognized_student_ids: List[str] = []
+    absent_student_ids: List[str] = []
     confidence_scores: List[float]
     unknown_faces_count: int
     message: str
+
+
+class AttendanceFinalizeRequest(BaseModel):
+    class_id: Optional[str] = None
+    present_student_ids: List[str]
+    absent_student_ids: List[str]
 
 
 class AttendanceDetail(BaseModel):

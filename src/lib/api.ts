@@ -1,6 +1,22 @@
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1';
+const AUTH_ROUTES = new Set(['/login']);
+
+export const authStorage = {
+    getToken: () => localStorage.getItem('token'),
+    isAuthenticated: () => Boolean(localStorage.getItem('token')),
+    setSession: (token: string, profile?: { name?: string; email?: string }) => {
+        localStorage.setItem('token', token);
+        if (profile?.name) localStorage.setItem('userName', profile.name);
+        if (profile?.email) localStorage.setItem('userEmail', profile.email);
+    },
+    clearSession: () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userEmail');
+    },
+};
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -10,13 +26,26 @@ const api = axios.create({
 // Request interceptor for adding JWT token
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
+        const token = authStorage.getToken();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
     },
     (error) => Promise.reject(error)
+);
+
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            authStorage.clearSession();
+            if (!AUTH_ROUTES.has(window.location.pathname)) {
+                window.location.replace('/login');
+            }
+        }
+        return Promise.reject(error);
+    }
 );
 
 export const authApi = {
@@ -32,7 +61,7 @@ export const authApi = {
 };
 
 export const studentApi = {
-    getAll: () => api.get('/students/'),
+    getAll: (classId?: string) => api.get('/students/', { params: classId ? { class_id: classId } : {} }),
     create: (student: any) => api.post('/students/', student),
     update: (id: string, student: any) => api.put(`/students/${id}`, student),
     delete: (id: string) => api.delete(`/students/${id}`),
@@ -52,6 +81,8 @@ export const attendanceApi = {
     },
     getToday: (classId?: string) => api.get('/attendance/today', { params: classId ? { class_id: classId } : {} }),
     getHistory: (params?: any) => api.get('/attendance/history', { params }),
+    finalize: (payload: { class_id?: string; present_student_ids: string[]; absent_student_ids: string[] }) =>
+        api.post('/attendance/finalize', payload),
 };
 
 export const reportsApi = {

@@ -112,8 +112,8 @@ async def upload_face(
     current_user: dict = Depends(get_current_user)
 ):
     """Upload a face image for student registration."""
-    if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
-        raise HTTPException(status_code=400, detail="Only JPEG/PNG images are accepted")
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Must be an image file")
 
     image_bytes = await file.read()
     success, message = await register_student_face(db, id, image_bytes)
