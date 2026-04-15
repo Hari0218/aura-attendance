@@ -70,18 +70,24 @@ export const studentApi = {
         formData.append('file', file);
         return api.post(`/students/${studentId}/faces`, formData);
     },
+    clearFaces: (studentId: string) => api.delete(`/students/${studentId}/faces`),
+    purgeAllFaces: () => api.delete('/students/all-faces'),
 };
 
 export const attendanceApi = {
-    uploadPhoto: (file: File, classId?: string) => {
+    uploadPhoto: (file: File, classId?: string, period?: string) => {
         const formData = new FormData();
         formData.append('file', file);
-        const url = classId ? `/attendance/upload-photo?class_id=${classId}` : '/attendance/upload-photo';
+        const params = new URLSearchParams();
+        if (classId) params.append('class_id', classId);
+        if (period) params.append('period', period);
+        const query = params.toString();
+        const url = `/attendance/upload-photo${query ? `?${query}` : ''}`;
         return api.post(url, formData);
     },
     getToday: (classId?: string) => api.get('/attendance/today', { params: classId ? { class_id: classId } : {} }),
     getHistory: (params?: any) => api.get('/attendance/history', { params }),
-    finalize: (payload: { class_id?: string; present_student_ids: string[]; absent_student_ids: string[] }) =>
+    finalize: (payload: { class_id?: string; period?: string; present_student_ids: string[]; absent_student_ids: string[] }) =>
         api.post('/attendance/finalize', payload),
 };
 
@@ -110,7 +116,7 @@ export const insightsApi = {
     frequentlyAbsent: (days?: number, threshold?: number) => api.get('/insights/frequently-absent', { params: { days, threshold } }),
     trends: (days?: number, classId?: string) => api.get('/insights/trends', { params: { days, class_id: classId } }),
     riskAlerts: (days?: number) => api.get('/insights/risk-alerts', { params: { days } }),
+    attendanceSummary: (classId?: string) => api.get('/insights/attendance-summary', { params: classId ? { class_id: classId } : {} }),
 };
 
 export default api;
-

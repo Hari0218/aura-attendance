@@ -3,10 +3,10 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from database.config import get_db
 from services.attendance_service import process_attendance
 from models import schemas
+from models.models import attendance_doc
 from .auth import get_current_user
 from typing import List, Optional
 import datetime
-from models.models import attendance_doc
 
 router = APIRouter()
 
@@ -15,6 +15,7 @@ router = APIRouter()
 async def upload_classroom_photo(
     file: UploadFile = File(...),
     class_id: Optional[str] = Query(None),
+    period: Optional[str] = Query(None),
     db: AsyncIOMotorDatabase = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -23,7 +24,7 @@ async def upload_classroom_photo(
         raise HTTPException(status_code=400, detail="Only JPEG/PNG images are accepted")
 
     image_bytes = await file.read()
-    result, message = await process_attendance(db, image_bytes, class_id=class_id)
+    result, message = await process_attendance(db, image_bytes, class_id=class_id, period=period)
     return {**result, "message": message}
 
 
@@ -114,51 +115,53 @@ async def finalize_attendance(
     db: AsyncIOMotorDatabase = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Persist the final present/absent selection for today's attendance."""
+    """
+    Persist the teacher-confirmed attendance.
+
+    REPLACE strategy: Deletes ALL existing attendance records for this
+    class+period+today before inserting the new confirmed list. This guarantees
+    the teacher's explicit selection is what gets saved — no stale records.
+    """
     today_start = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
     present_ids = list(dict.fromkeys(payload.present_student_ids))
-    absent_ids = [student_id for student_id in dict.fromkeys(payload.absent_student_ids) if student_id not in present_ids]
+    absent_ids = [sid for sid in dict.fromkeys(payload.absent_student_ids) if sid not in present_ids]
+    all_ids = present_ids + absent_ids
 
+    # Validate all students belong to the selected class
     query = {}
     if payload.class_id:
         query["class_id"] = payload.class_id
-
     students = await db.students.find(query).to_list(length=5000)
-    valid_student_ids = {student["_id"] for student in students}
+    valid_student_ids = {s["_id"] for s in students}
 
-    invalid_ids = [student_id for student_id in present_ids + absent_ids if student_id not in valid_student_ids]
+    invalid_ids = [sid for sid in all_ids if sid not in valid_student_ids]
     if invalid_ids:
         raise HTTPException(status_code=400, detail="Attendance list contains students outside the selected classroom")
 
-    for student_id in present_ids:
-        existing = await db.attendance.find_one({
-            "student_id": student_id,
-            "date": {"$gte": today_start}
-        })
-        if existing:
-            await db.attendance.update_one(
-                {"_id": existing["_id"]},
-                {"$set": {"status": "PRESENT", "confidence": max(existing.get("confidence", 0.0), 1.0)}}
-            )
-        else:
-            await db.attendance.insert_one(attendance_doc(student_id=student_id, status="PRESENT", confidence=1.0))
+    period = payload.period
 
+    # ---- REPLACE: delete existing records for these students for today ----
+    delete_filter = {
+        "student_id": {"$in": all_ids},
+        "date": {"$gte": today_start}
+    }
+    if period:
+        delete_filter["period"] = period
+    await db.attendance.delete_many(delete_filter)
+
+    # ---- Insert fresh confirmed records ----
+    docs = []
+    for student_id in present_ids:
+        docs.append(attendance_doc(student_id=student_id, status="PRESENT", confidence=1.0, period=period))
     for student_id in absent_ids:
-        existing = await db.attendance.find_one({
-            "student_id": student_id,
-            "date": {"$gte": today_start}
-        })
-        if existing:
-            await db.attendance.update_one(
-                {"_id": existing["_id"]},
-                {"$set": {"status": "ABSENT", "confidence": 0.0}}
-            )
-        else:
-            await db.attendance.insert_one(attendance_doc(student_id=student_id, status="ABSENT", confidence=0.0))
+        docs.append(attendance_doc(student_id=student_id, status="ABSENT", confidence=0.0, period=period))
+
+    if docs:
+        await db.attendance.insert_many(docs)
 
     return {
-        "message": "Attendance finalized successfully",
+        "message": "Attendance saved successfully",
         "present_count": len(present_ids),
         "absent_count": len(absent_ids)
     }

@@ -122,3 +122,43 @@ async def upload_face(
 
     face_count = await db.face_embeddings.count_documents({"student_id": id})
     return {"message": message, "face_count": face_count}
+
+
+@router.delete("/{id}/faces")
+async def clear_faces(
+    id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete ALL face embeddings for a student so they can be re-registered cleanly."""
+    existing = await db.students.find_one({"_id": id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    result = await db.face_embeddings.delete_many({"student_id": id})
+    from services.attendance_service import _retrain_classifier
+    await _retrain_classifier(db)
+    return {"message": f"Cleared {result.deleted_count} face embeddings for {existing['name']}", "deleted_count": result.deleted_count}
+
+
+@router.delete("/all-faces")
+async def purge_all_faces(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    ⚠️ DANGER: Delete ALL face embeddings for ALL students in the system.
+    Use this to wipe corrupted/garbage embeddings and start fresh.
+    After calling this, re-register every student with new frontal photos.
+    """
+    count_before = await db.face_embeddings.count_documents({})
+    await db.face_embeddings.delete_many({})
+    # Wipe the SVM model too since it's now invalid
+    import os, pickle
+    svm_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'ai_models', 'svm_model.pkl')
+    if os.path.exists(svm_path):
+        os.remove(svm_path)
+    return {
+        "message": f"Purged {count_before} face embeddings. All students need to be re-registered.",
+        "deleted_count": count_before
+    }

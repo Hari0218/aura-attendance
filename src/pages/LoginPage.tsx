@@ -4,42 +4,91 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Scan, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Scan } from "lucide-react";
 import { authApi, authStorage } from "@/lib/api";
 import { toast } from "sonner";
 
-function FaceIllustration() {
+function AttendanceIllustration() {
   return (
-    <div className="relative w-72 h-72">
-      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/20 via-purple-500/10 to-cyan-400/20 blur-3xl animate-glow-pulse" />
-      <div className="absolute inset-8 rounded-full border-2 border-primary/40 animate-float shadow-[0_0_40px_hsl(243_75%_59%/0.15)]">
-        <div className="absolute inset-3 rounded-full border border-primary/20" />
-        <div className="absolute inset-6 rounded-full border border-primary/10" />
-        <div className="absolute top-[35%] left-[25%] w-3.5 h-3.5 rounded-full bg-primary/60 shadow-[0_0_12px_hsl(243_75%_59%/0.5)]" />
-        <div className="absolute top-[35%] right-[25%] w-3.5 h-3.5 rounded-full bg-primary/60 shadow-[0_0_12px_hsl(243_75%_59%/0.5)]" />
-        <div className="absolute bottom-[28%] left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20" />
-      </div>
-      <div className="absolute inset-0 overflow-hidden rounded-full">
-        <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary/80 to-transparent animate-scan-line shadow-[0_0_20px_hsl(243_75%_59%/0.6)]" />
-      </div>
-      <div className="absolute top-3 left-3 w-8 h-8 border-l-2 border-t-2 border-primary/70 rounded-tl-lg shadow-[0_0_10px_hsl(243_75%_59%/0.3)]" />
-      <div className="absolute top-3 right-3 w-8 h-8 border-r-2 border-t-2 border-primary/70 rounded-tr-lg shadow-[0_0_10px_hsl(243_75%_59%/0.3)]" />
-      <div className="absolute bottom-3 left-3 w-8 h-8 border-l-2 border-b-2 border-primary/70 rounded-bl-lg shadow-[0_0_10px_hsl(243_75%_59%/0.3)]" />
-      <div className="absolute bottom-3 right-3 w-8 h-8 border-r-2 border-b-2 border-primary/70 rounded-br-lg shadow-[0_0_10px_hsl(243_75%_59%/0.3)]" />
-      {[...Array(8)].map((_, i) => (
+    <>
+      <style>{`
+        @keyframes scanSweep {
+          0%   { top: 15%; opacity: 0.8; }
+          48%  { top: 82%; opacity: 0.8; }
+          50%  { top: 82%; opacity: 0;   }
+          51%  { top: 15%; opacity: 0;   }
+          52%  { top: 15%; opacity: 0.8; }
+          100% { top: 15%; opacity: 0.8; }
+        }
+        @keyframes pulseRing {
+          0%, 100% { opacity: 0.25; transform: scale(1); }
+          50%       { opacity: 0.5;  transform: scale(1.04); }
+        }
+      `}</style>
+      <div className="relative w-72 h-72 flex items-center justify-center">
+        {/* Outer soft ring */}
         <div
-          key={i}
-          className="absolute w-1.5 h-1.5 rounded-full bg-primary/50 animate-pulse shadow-[0_0_6px_hsl(243_75%_59%/0.4)]"
+          className="absolute inset-0 rounded-full"
           style={{
-            top: `${15 + Math.random() * 70}%`,
-            left: `${15 + Math.random() * 70}%`,
-            animationDelay: `${i * 0.4}s`,
+            background: "radial-gradient(circle, rgba(196,98,45,0.12) 0%, rgba(196,98,45,0.03) 70%, transparent 100%)",
           }}
         />
-      ))}
-      <div className="absolute inset-0 rounded-full border border-primary/15 animate-pulse-ring" />
-      <div className="absolute inset-4 rounded-full border border-primary/10 animate-pulse-ring" style={{ animationDelay: "0.5s" }} />
-    </div>
+        {/* Middle ring — subtle pulse */}
+        <div
+          className="absolute inset-8 rounded-full border-2"
+          style={{
+            borderColor: "rgba(196,98,45,0.25)",
+            animation: "pulseRing 3s ease-in-out infinite",
+          }}
+        />
+        {/* Inner ring */}
+        <div
+          className="absolute inset-16 rounded-full border"
+          style={{ borderColor: "rgba(196,98,45,0.15)" }}
+        />
+        {/* Corner brackets — top-left */}
+        <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 rounded-tl-lg" style={{ borderColor: "rgba(196,98,45,0.5)" }} />
+        {/* top-right */}
+        <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 rounded-tr-lg" style={{ borderColor: "rgba(196,98,45,0.5)" }} />
+        {/* bottom-left */}
+        <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 rounded-bl-lg" style={{ borderColor: "rgba(196,98,45,0.5)" }} />
+        {/* bottom-right */}
+        <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 rounded-br-lg" style={{ borderColor: "rgba(196,98,45,0.5)" }} />
+
+        {/* ── Scanner sweep line ── */}
+        <div
+          className="absolute left-6 right-6 pointer-events-none z-20"
+          style={{
+            height: "2px",
+            animation: "scanSweep 2.8s ease-in-out infinite",
+            background: "linear-gradient(90deg, transparent, rgba(196,98,45,0.9), transparent)",
+            boxShadow: "0 0 8px 3px rgba(196,98,45,0.45)",
+            borderRadius: "9999px",
+          }}
+        />
+
+        {/* Center icon */}
+        <div
+          className="relative z-10 h-20 w-20 rounded-2xl flex items-center justify-center shadow-md"
+          style={{ background: "rgba(196,98,45,0.1)", border: "1.5px solid rgba(196,98,45,0.3)" }}
+        >
+          <Scan className="h-9 w-9" style={{ color: "#C4622D" }} />
+        </div>
+
+        {/* Dots */}
+        {[
+          { top: "22%", left: "18%" },
+          { top: "22%", right: "18%", left: "auto" },
+          { bottom: "22%", left: "50%", transform: "translateX(-50%)" },
+        ].map((pos, i) => (
+          <div
+            key={i}
+            className="absolute w-2 h-2 rounded-full"
+            style={{ background: "rgba(196,98,45,0.5)", ...pos }}
+          />
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -90,43 +139,85 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-background to-purple-500/5" />
-      <div className="absolute inset-0 dot-pattern opacity-40" />
-      <div className="absolute top-10 left-10 w-80 h-80 bg-primary/8 rounded-full blur-[100px] animate-float" />
-      <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-500/6 rounded-full blur-[120px] animate-float-delay" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-400/4 rounded-full blur-[150px]" />
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{ background: "#FDF6EE" }}
+    >
+      <div className="w-full max-w-5xl grid md:grid-cols-2 gap-12 items-center animate-fade-in">
 
-      <div className="w-full max-w-5xl grid md:grid-cols-2 gap-12 items-center animate-fade-in relative z-10">
+        {/* Left panel — illustration */}
         <div className="hidden md:flex flex-col items-center justify-center gap-8">
-          <FaceIllustration />
-          <div className="text-center space-y-3">
-            <div className="flex items-center justify-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <h2 className="text-2xl font-bold text-gradient">AI Face Recognition</h2>
-              <Sparkles className="h-5 w-5 text-primary" />
-            </div>
-            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+          <AttendanceIllustration />
+          <div className="text-center space-y-2">
+            <h2
+              className="text-2xl font-bold"
+              style={{
+                fontFamily: "'Playfair Display', Georgia, serif",
+                color: "#2C1810",
+              }}
+            >
+              AI Face Recognition
+            </h2>
+            <p
+              className="text-sm max-w-xs leading-relaxed"
+              style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+            >
               Automated attendance powered by advanced facial recognition technology. Fast, accurate, and intelligent.
             </p>
           </div>
         </div>
 
-        <Card className="glass-card card-glow">
+        {/* Right panel — login card */}
+        <Card
+          className="border"
+          style={{
+            background: "#FFFFFF",
+            borderColor: "#EDE0D4",
+            borderRadius: "16px",
+            boxShadow: "0 2px 16px rgba(196, 98, 45, 0.07)",
+          }}
+        >
           <CardHeader className="space-y-1 pb-6">
             <div className="flex items-center gap-3 mb-3">
-              <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center glow-primary">
-                <Scan className="h-5 w-5 text-primary-foreground" />
+              <div
+                className="h-10 w-10 rounded-xl flex items-center justify-center"
+                style={{ background: "#C4622D" }}
+              >
+                <Scan className="h-5 w-5 text-white" />
               </div>
-              <span className="font-extrabold text-xl text-gradient">AttendAI</span>
+              <span
+                className="font-bold text-xl"
+                style={{
+                  fontFamily: "'Playfair Display', Georgia, serif",
+                  color: "#2C1810",
+                }}
+              >
+                AttendAI
+              </span>
             </div>
-            <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-            <CardDescription className="text-muted-foreground">Sign in to your teacher dashboard</CardDescription>
+            <CardTitle
+              className="text-2xl font-bold"
+              style={{
+                fontFamily: "'Playfair Display', Georgia, serif",
+                color: "#2C1810",
+              }}
+            >
+              Welcome back
+            </CardTitle>
+            <CardDescription style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}>
+              Sign in to your teacher dashboard
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                <Label
+                  htmlFor="email"
+                  className="text-sm font-medium"
+                  style={{ color: "#2C1810", fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  Email
+                </Label>
                 <Input
                   id="email"
                   type="email"
@@ -134,26 +225,47 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="h-11 bg-muted/50 border-border/60 focus:border-primary focus:ring-primary/20"
+                  style={{
+                    height: "44px",
+                    background: "#FDF6EE",
+                    borderColor: "#EDE0D4",
+                    fontFamily: "'DM Sans', sans-serif",
+                    color: "#2C1810",
+                    transition: "all 0.2s ease",
+                  }}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+                <Label
+                  htmlFor="password"
+                  className="text-sm font-medium"
+                  style={{ color: "#2C1810", fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  Password
+                </Label>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="........"
+                    placeholder="········"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="h-11 bg-muted/50 border-border/60 focus:border-primary focus:ring-primary/20"
+                    style={{
+                      height: "44px",
+                      background: "#FDF6EE",
+                      borderColor: "#EDE0D4",
+                      fontFamily: "'DM Sans', sans-serif",
+                      color: "#2C1810",
+                      transition: "all 0.2s ease",
+                    }}
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
+                    className="absolute right-0 top-0 h-full px-3"
+                    style={{ color: "#7C5C4E" }}
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -161,26 +273,49 @@ export default function LoginPage() {
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                  <input type="checkbox" className="rounded border-input accent-primary" />
+                <label
+                  className="flex items-center gap-2 text-sm cursor-pointer"
+                  style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  <input type="checkbox" className="rounded border-input" style={{ accentColor: "#C4622D" }} />
                   Remember me
                 </label>
-                <Button variant="link" className="px-0 text-sm h-auto text-primary" type="button">
+                <Button
+                  variant="link"
+                  className="px-0 text-sm h-auto"
+                  style={{ color: "#C4622D", fontFamily: "'DM Sans', sans-serif" }}
+                  type="button"
+                >
                   Forgot password?
                 </Button>
               </div>
-              <Button type="submit" className="w-full h-11 gradient-primary text-primary-foreground border-0 font-semibold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300" disabled={loading}>
+              <Button
+                type="submit"
+                className="w-full font-semibold border-0"
+                style={{
+                  height: "44px",
+                  background: "#C4622D",
+                  color: "#ffffff",
+                  borderRadius: "999px",
+                  fontFamily: "'DM Sans', sans-serif",
+                  transition: "all 0.2s ease",
+                }}
+                disabled={loading}
+              >
                 {loading ? (
                   <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Signing in...
                   </div>
                 ) : (
                   "Sign in"
                 )}
               </Button>
-              <p className="text-center text-xs text-muted-foreground">
-                Secure login | 256-bit encryption
+              <p
+                className="text-center text-xs"
+                style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+              >
+                Secure login · 256-bit encryption
               </p>
             </form>
           </CardContent>

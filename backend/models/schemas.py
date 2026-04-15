@@ -68,6 +68,7 @@ class AttendanceResponse(BaseModel):
 
 class AttendanceFinalizeRequest(BaseModel):
     class_id: Optional[str] = None
+    period: Optional[str] = None
     present_student_ids: List[str]
     absent_student_ids: List[str]
 
@@ -126,3 +127,14 @@ class RiskAlert(BaseModel):
     risk_level: str  # HIGH, MEDIUM, LOW
     recent_absence_rate: float
     message: str
+
+
+class AttendanceSummaryStudent(BaseModel):
+    student_id: str
+    student_name: str
+    roll_number: str
+    class_name: str
+    present_count: int
+    absent_count: int
+    total_count: int
+    attendance_rate: float  # 0-100

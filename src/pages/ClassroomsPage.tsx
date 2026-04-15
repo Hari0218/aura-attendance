@@ -9,7 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, School, Users, Trash2, Camera, ImagePlus, ChevronRight } from "lucide-react";
 import { classroomApi, studentApi } from "@/lib/api";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
 
 interface Classroom {
   id: string;
@@ -25,6 +24,24 @@ interface Student {
   email: string;
   class_id: string;
 }
+
+const inputStyle: React.CSSProperties = {
+  background: "#FDF6EE",
+  borderColor: "#EDE0D4",
+  color: "#2C1810",
+  fontFamily: "'DM Sans', sans-serif",
+  transition: "all 0.2s ease",
+};
+
+const btnPrimary: React.CSSProperties = {
+  background: "#C4622D",
+  color: "#fff",
+  borderRadius: "999px",
+  fontFamily: "'DM Sans', sans-serif",
+  fontWeight: 600,
+  border: "none",
+  transition: "all 0.2s ease",
+};
 
 export default function ClassroomsPage() {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
@@ -174,37 +191,80 @@ export default function ClassroomsPage() {
 
   return (
     <DashboardLayout>
-      <motion.div 
-        className="space-y-6"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+      <div className="space-y-6 animate-fade-in">
+        {/* Header */}
+        <div
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4"
+          style={{ borderColor: "#EDE0D4" }}
+        >
           <div className="flex flex-col">
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Classrooms</h1>
-            <p className="text-gray-500 mt-1">Manage sections and enrolled students. Total: {classrooms.length}</p>
+            <h1
+              className="text-3xl font-bold tracking-tight"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#2C1810" }}
+            >
+              Classrooms
+            </h1>
+            <p className="mt-1" style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}>
+              Manage sections and enrolled students. Total: {classrooms.length}
+            </p>
           </div>
           <Dialog open={isAddClassOpen} onOpenChange={setIsAddClassOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-10 px-6 rounded-full shadow-sm">
+              <Button className="font-semibold h-10 px-6 border-0" style={btnPrimary}>
                 <Plus className="h-4 w-4 mr-2" /> Add Classroom
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-white border-0 shadow-2xl rounded-2xl">
+            <DialogContent
+              style={{
+                background: "#fff",
+                border: "1px solid #EDE0D4",
+                borderRadius: "16px",
+                boxShadow: "0 2px 16px rgba(196,98,45,0.07)",
+              }}
+            >
               <DialogHeader>
-                <DialogTitle className="text-xl font-bold text-gray-900">Create Classroom</DialogTitle>
+                <DialogTitle
+                  className="text-xl font-bold"
+                  style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#2C1810" }}
+                >
+                  Create Classroom
+                </DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
-                  <Label className="text-gray-700 font-semibold">Classroom Name</Label>
-                  <Input placeholder="e.g. AIDS-A" className="bg-gray-50 border-gray-200" value={newClassName} onChange={(e) => setNewClassName(e.target.value)} />
+                  <Label
+                    className="font-semibold"
+                    style={{ color: "#2C1810", fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    Classroom Name
+                  </Label>
+                  <Input
+                    placeholder="e.g. AIDS-A"
+                    style={inputStyle}
+                    value={newClassName}
+                    onChange={(e) => setNewClassName(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-gray-700 font-semibold">Description (optional)</Label>
-                  <Input placeholder="e.g. AI & Data Science Section A" className="bg-gray-50 border-gray-200" value={newClassDesc} onChange={(e) => setNewClassDesc(e.target.value)} />
+                  <Label
+                    className="font-semibold"
+                    style={{ color: "#2C1810", fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    Description (optional)
+                  </Label>
+                  <Input
+                    placeholder="e.g. AI & Data Science Section A"
+                    style={inputStyle}
+                    value={newClassDesc}
+                    onChange={(e) => setNewClassDesc(e.target.value)}
+                  />
                 </div>
-                <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl" onClick={handleAddClassroom} disabled={addingClass}>
+                <Button
+                  className="w-full font-semibold border-0"
+                  style={btnPrimary}
+                  onClick={handleAddClassroom}
+                  disabled={addingClass}
+                >
                   {addingClass ? "Creating..." : "Create Classroom"}
                 </Button>
               </div>
@@ -213,35 +273,62 @@ export default function ClassroomsPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Classroom list */}
           <div className="space-y-3">
             {loading ? (
               <div className="flex justify-center p-12">
-                <div className="h-8 w-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                <div
+                  className="h-8 w-8 border-4 rounded-full animate-spin"
+                  style={{ borderColor: "rgba(196,98,45,0.2)", borderTopColor: "#C4622D" }}
+                />
               </div>
             ) : classrooms.length === 0 ? (
               <div className="card-elevated p-8 flex flex-col items-center justify-center text-center">
-                <div className="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center mb-4">
-                  <School className="h-8 w-8 text-gray-400" />
+                <div
+                  className="h-16 w-16 rounded-full flex items-center justify-center mb-4"
+                  style={{ background: "#FDF6EE" }}
+                >
+                  <School className="h-8 w-8" style={{ color: "#7C5C4E" }} />
                 </div>
-                <p className="text-gray-500 font-medium text-sm">No classrooms found</p>
+                <p
+                  className="font-medium text-sm"
+                  style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  No classrooms found
+                </p>
               </div>
             ) : (
               classrooms.map((classroom) => (
                 <div
                   key={classroom.id}
-                  className={`group card-elevated cursor-pointer transition-all ${selectedClassroom?.id === classroom.id ? "ring-2 ring-primary border-transparent" : ""}`}
+                  className="card-elevated cursor-pointer transition-all"
+                  style={{
+                    outline: selectedClassroom?.id === classroom.id ? "2px solid #C4622D" : "none",
+                    transition: "all 0.2s ease",
+                  }}
                   onClick={() => void selectClassroom(classroom)}
                 >
                   <div className="p-5 flex items-center justify-between">
                     <div>
-                      <h3 className="font-bold text-gray-900">{classroom.name}</h3>
-                      <p className="text-sm text-gray-500 mt-0.5">{classroom.student_count} students</p>
+                      <h3
+                        className="font-bold"
+                        style={{ color: "#2C1810", fontFamily: "'DM Sans', sans-serif" }}
+                      >
+                        {classroom.name}
+                      </h3>
+                      <p
+                        className="text-sm mt-0.5"
+                        style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                      >
+                        {classroom.student_count} students
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full"
+                        className="h-8 w-8 rounded-full"
+                        style={{ color: "#ef4444" }}
                         onClick={(e) => {
                           e.stopPropagation();
                           void handleDeleteClassroom(classroom.id, classroom.name);
@@ -249,7 +336,12 @@ export default function ClassroomsPage() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                      <ChevronRight className={`h-5 w-5 ${selectedClassroom?.id === classroom.id ? "text-primary" : "text-gray-300 group-hover:text-gray-400"}`} />
+                      <ChevronRight
+                        className="h-5 w-5"
+                        style={{
+                          color: selectedClassroom?.id === classroom.id ? "#C4622D" : "#EDE0D4",
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -257,58 +349,149 @@ export default function ClassroomsPage() {
             )}
           </div>
 
+          {/* Student detail panel */}
           <div className="lg:col-span-2">
             {selectedClassroom ? (
               <div className="card-elevated overflow-hidden flex flex-col h-full bg-white">
-                <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                <div
+                  className="p-6 border-b flex items-center justify-between"
+                  style={{ borderColor: "#EDE0D4" }}
+                >
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">{selectedClassroom.name}</h2>
-                    <p className="text-sm text-gray-500 mt-1">{students.length} Total Students</p>
+                    <h2
+                      className="text-xl font-bold"
+                      style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#2C1810" }}
+                    >
+                      {selectedClassroom.name}
+                    </h2>
+                    <p
+                      className="text-sm mt-1"
+                      style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                    >
+                      {students.length} Total Students
+                    </p>
                   </div>
                   <Dialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen}>
                     <DialogTrigger asChild>
-                      <Button className="bg-primary hover:bg-primary/90 rounded-full font-semibold px-4 h-9">
+                      <Button
+                        className="font-semibold px-4 h-9 border-0"
+                        style={btnPrimary}
+                      >
                         <Plus className="h-4 w-4 mr-2" /> Add Student
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="bg-white border-0 shadow-2xl rounded-2xl max-w-lg">
+                    <DialogContent
+                      className="max-w-lg"
+                      style={{
+                        background: "#fff",
+                        border: "1px solid #EDE0D4",
+                        borderRadius: "16px",
+                        boxShadow: "0 2px 16px rgba(196,98,45,0.07)",
+                      }}
+                    >
                       <DialogHeader>
-                        <DialogTitle className="text-xl font-bold text-gray-900">Add Student to {selectedClassroom.name}</DialogTitle>
+                        <DialogTitle
+                          className="text-xl font-bold"
+                          style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#2C1810" }}
+                        >
+                          Add Student to {selectedClassroom.name}
+                        </DialogTitle>
                       </DialogHeader>
                       <div className="space-y-4 pt-2">
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-2">
-                            <Label className="font-semibold text-gray-700">Full Name *</Label>
-                            <Input placeholder="Student name" className="bg-gray-50 border-gray-200" value={newStudent.name} onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })} />
+                            <Label
+                              className="font-semibold"
+                              style={{ color: "#2C1810", fontFamily: "'DM Sans', sans-serif" }}
+                            >
+                              Full Name *
+                            </Label>
+                            <Input
+                              placeholder="Student name"
+                              style={inputStyle}
+                              value={newStudent.name}
+                              onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
+                            />
                           </div>
                           <div className="space-y-2">
-                            <Label className="font-semibold text-gray-700">Roll / ID Number *</Label>
-                            <Input placeholder="e.g. AIDS-A-001" className="bg-gray-50 border-gray-200" value={newStudent.rollNumber} onChange={(e) => setNewStudent({ ...newStudent, rollNumber: e.target.value })} />
+                            <Label
+                              className="font-semibold"
+                              style={{ color: "#2C1810", fontFamily: "'DM Sans', sans-serif" }}
+                            >
+                              Roll / ID Number *
+                            </Label>
+                            <Input
+                              placeholder="e.g. AIDS-A-001"
+                              style={inputStyle}
+                              value={newStudent.rollNumber}
+                              onChange={(e) => setNewStudent({ ...newStudent, rollNumber: e.target.value })}
+                            />
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <Label className="font-semibold text-gray-700">Email (Optional)</Label>
-                          <Input type="email" placeholder="student@example.com" className="bg-gray-50 border-gray-200" value={newStudent.email} onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })} />
+                          <Label
+                            className="font-semibold"
+                            style={{ color: "#2C1810", fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            Email (Optional)
+                          </Label>
+                          <Input
+                            type="email"
+                            placeholder="student@example.com"
+                            style={inputStyle}
+                            value={newStudent.email}
+                            onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
+                          />
                         </div>
                         <div className="space-y-2">
-                          <Label className="flex items-center gap-2 font-semibold text-gray-700">
+                          <Label
+                            className="flex items-center gap-2 font-semibold"
+                            style={{ color: "#2C1810", fontFamily: "'DM Sans', sans-serif" }}
+                          >
                             <Camera className="h-4 w-4" /> Face Photos
                           </Label>
                           <div
-                            className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-gray-50 transition-colors"
+                            className="border-2 border-dashed rounded-xl p-6 text-center cursor-pointer"
+                            style={{
+                              borderColor: "#EDE0D4",
+                              background: "#FDF6EE",
+                              transition: "all 0.2s ease",
+                            }}
                             onClick={() => document.getElementById("multi-face-upload")?.click()}
                           >
-                            <input id="multi-face-upload" type="file" className="hidden" onChange={handleFaceFileChange} accept="image/*" multiple />
-                            <ImagePlus className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                            <p className="text-sm text-gray-600 font-medium">Click to add photos</p>
-                            <p className="text-xs text-gray-400 mt-1">Upload 3-4 different angle photos for best accuracy</p>
+                            <input
+                              id="multi-face-upload"
+                              type="file"
+                              className="hidden"
+                              onChange={handleFaceFileChange}
+                              accept="image/*"
+                              multiple
+                            />
+                            <ImagePlus className="h-8 w-8 mx-auto mb-2" style={{ color: "#EDE0D4" }} />
+                            <p
+                              className="text-sm font-medium"
+                              style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                            >
+                              Click to add photos
+                            </p>
+                            <p
+                              className="text-xs mt-1"
+                              style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                            >
+                              Upload 3–4 different angle photos for best accuracy
+                            </p>
                           </div>
 
                           {faceImages.length > 0 && (
                             <div className="flex flex-wrap gap-2 mt-3">
                               {faceImages.map((file, index) => (
                                 <div key={index} className="relative group">
-                                  <img src={URL.createObjectURL(file)} alt={`Face ${index + 1}`} className="h-16 w-16 rounded-lg object-cover border border-gray-200" />
+                                  <img
+                                    src={URL.createObjectURL(file)}
+                                    alt={`Face ${index + 1}`}
+                                    className="h-16 w-16 rounded-lg object-cover border"
+                                    style={{ borderColor: "#EDE0D4" }}
+                                  />
                                   <button
                                     type="button"
                                     className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs shadow-sm hover:scale-110 transition-transform"
@@ -322,44 +505,114 @@ export default function ClassroomsPage() {
                           )}
                         </div>
 
-                        <Button className="w-full bg-primary hover:bg-primary/90 text-white font-semibold rounded-xl mt-2" onClick={handleAddStudent} disabled={addingStudent}>
-                          {addingStudent ? "Adding..." : `Add Student${faceImages.length > 0 ? ` with ${faceImages.length} photo${faceImages.length > 1 ? "s" : ""}` : ""}`}
+                        <Button
+                          className="w-full font-semibold mt-2 border-0"
+                          style={btnPrimary}
+                          onClick={handleAddStudent}
+                          disabled={addingStudent}
+                        >
+                          {addingStudent
+                            ? "Adding..."
+                            : `Add Student${faceImages.length > 0 ? ` with ${faceImages.length} photo${faceImages.length > 1 ? "s" : ""}` : ""}`}
                         </Button>
                       </div>
                     </DialogContent>
                   </Dialog>
                 </div>
+
                 <div className="p-0">
                   {students.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-24 text-gray-500">
-                      <div className="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center mb-4">
-                        <Users className="h-8 w-8 text-gray-400" />
+                    <div
+                      className="flex flex-col items-center justify-center py-24"
+                      style={{ color: "#7C5C4E" }}
+                    >
+                      <div
+                        className="h-16 w-16 rounded-full flex items-center justify-center mb-4"
+                        style={{ background: "#FDF6EE" }}
+                      >
+                        <Users className="h-8 w-8" style={{ color: "#7C5C4E" }} />
                       </div>
-                      <p className="text-gray-900 font-medium">No students registered</p>
-                      <p className="text-sm mt-1">Add students to see them here</p>
+                      <p
+                        className="font-medium"
+                        style={{ color: "#2C1810", fontFamily: "'DM Sans', sans-serif" }}
+                      >
+                        No students registered
+                      </p>
+                      <p
+                        className="text-sm mt-1"
+                        style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                      >
+                        Add students to see them here
+                      </p>
                     </div>
                   ) : (
                     <Table>
-                      <TableHeader className="bg-gray-50">
+                      <TableHeader style={{ background: "#FDF6EE" }}>
                         <TableRow className="hover:bg-transparent">
-                          <TableHead className="font-semibold text-gray-500">Name</TableHead>
-                          <TableHead className="font-semibold text-gray-500">ID Number</TableHead>
-                          <TableHead className="font-semibold text-gray-500">Email</TableHead>
-                          <TableHead className="text-right font-semibold text-gray-500">Actions</TableHead>
+                          <TableHead
+                            className="font-semibold"
+                            style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            Name
+                          </TableHead>
+                          <TableHead
+                            className="font-semibold"
+                            style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            ID Number
+                          </TableHead>
+                          <TableHead
+                            className="font-semibold"
+                            style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            Email
+                          </TableHead>
+                          <TableHead
+                            className="text-right font-semibold"
+                            style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            Actions
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {students.map((student) => (
-                          <TableRow key={student.id} className="hover:bg-gray-50 transition-colors">
-                            <TableCell className="font-bold text-gray-900">{student.name}</TableCell>
+                          <TableRow
+                            key={student.id}
+                            className="transition-colors"
+                            style={{ borderColor: "#EDE0D4" }}
+                          >
+                            <TableCell
+                              className="font-bold text-sm"
+                              style={{ color: "#2C1810", fontFamily: "'DM Sans', sans-serif" }}
+                            >
+                              {student.name}
+                            </TableCell>
                             <TableCell>
-                              <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md text-xs font-semibold">
+                              <span
+                                className="px-2.5 py-1 rounded-md text-xs font-semibold"
+                                style={{
+                                  background: "rgba(196,98,45,0.08)",
+                                  color: "#7C5C4E",
+                                  fontFamily: "'DM Sans', sans-serif",
+                                }}
+                              >
                                 {student.roll_number}
                               </span>
                             </TableCell>
-                            <TableCell className="text-gray-500 text-sm">{student.email || "-"}</TableCell>
+                            <TableCell
+                              className="text-sm"
+                              style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                            >
+                              {student.email || "–"}
+                            </TableCell>
                             <TableCell className="text-right">
-                              <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => void handleDeleteStudent(student.id, student.name)}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                style={{ color: "#ef4444" }}
+                                onClick={() => void handleDeleteStudent(student.id, student.name)}
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </TableCell>
@@ -371,19 +624,33 @@ export default function ClassroomsPage() {
                 </div>
               </div>
             ) : (
-              <div className="h-full min-h-[400px] flex flex-col items-center justify-center p-8 bg-gray-50 border-2 border-dashed border-gray-200 rounded-3xl">
-                <div className="h-20 w-20 rounded-full bg-white flex items-center justify-center mb-6 shadow-sm border border-gray-100">
-                  <School className="h-10 w-10 text-gray-300" />
+              <div
+                className="h-full min-h-[400px] flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-3xl"
+                style={{ background: "#FDF6EE", borderColor: "#EDE0D4" }}
+              >
+                <div
+                  className="h-20 w-20 rounded-full flex items-center justify-center mb-6 border"
+                  style={{ background: "#fff", borderColor: "#EDE0D4" }}
+                >
+                  <School className="h-10 w-10" style={{ color: "#EDE0D4" }} />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Select a Classroom</h3>
-                <p className="text-sm text-gray-500 text-center max-w-sm">
+                <h3
+                  className="text-xl font-bold mb-2"
+                  style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#2C1810" }}
+                >
+                  Select a Classroom
+                </h3>
+                <p
+                  className="text-sm text-center max-w-sm"
+                  style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                >
                   Click on a classroom from the left panel to view and manage its students.
                 </p>
               </div>
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
     </DashboardLayout>
   );
 }

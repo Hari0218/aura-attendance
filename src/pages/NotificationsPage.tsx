@@ -1,7 +1,6 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,10 +16,10 @@ const statusIcons: Record<string, any> = {
   FAILED: XCircle,
 };
 
-const statusColors: Record<string, string> = {
-  SENT: "bg-success/10 text-success",
-  PENDING: "bg-warning/10 text-warning",
-  FAILED: "bg-destructive/10 text-destructive",
+const statusStyles: Record<string, { bg: string; text: string }> = {
+  SENT: { bg: "#D1FAE5", text: "#065F46" },
+  PENDING: { bg: "#FEF3C7", text: "#92400E" },
+  FAILED: { bg: "#FEE2E2", text: "#991B1B" },
 };
 
 interface Notification {
@@ -98,16 +97,35 @@ export default function NotificationsPage() {
     }
   };
 
+  const inputStyle: React.CSSProperties = {
+    background: "#FDF6EE",
+    borderColor: "#EDE0D4",
+    color: "#2C1810",
+    fontFamily: "'DM Sans', sans-serif",
+    transition: "all 0.2s ease",
+  };
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 animate-fade-in">
+        {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center shadow-lg shadow-primary/25">
-            <Bell className="h-5 w-5 text-primary-foreground" />
+          <div
+            className="h-10 w-10 rounded-xl flex items-center justify-center"
+            style={{ background: "rgba(196,98,45,0.12)" }}
+          >
+            <Bell className="h-5 w-5" style={{ color: "#C4622D" }} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
-            <p className="text-sm text-muted-foreground">Send alerts to students and parents</p>
+            <h1
+              className="text-2xl font-bold"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "#2C1810" }}
+            >
+              Notifications
+            </h1>
+            <p className="text-sm" style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}>
+              Send alerts to students and parents
+            </p>
           </div>
         </div>
 
@@ -115,13 +133,25 @@ export default function NotificationsPage() {
           {/* Compose */}
           <Card className="card-elevated lg:col-span-1">
             <CardHeader>
-              <CardTitle className="text-base font-semibold">Send Notification</CardTitle>
+              <CardTitle
+                className="text-base font-semibold"
+                style={{ fontFamily: "'DM Sans', sans-serif", color: "#2C1810" }}
+              >
+                Send Notification
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label className="font-medium">Recipient</Label>
+                <Label
+                  className="font-medium"
+                  style={{ color: "#2C1810", fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  Recipient
+                </Label>
                 <Select value={selectedStudent} onValueChange={setSelectedStudent}>
-                  <SelectTrigger className="bg-muted/50 border-border/60"><SelectValue placeholder="Select student" /></SelectTrigger>
+                  <SelectTrigger style={inputStyle}>
+                    <SelectValue placeholder="Select student" />
+                  </SelectTrigger>
                   <SelectContent>
                     {students.map((s) => (
                       <SelectItem key={s.id} value={s.id}>{s.name} ({s.roll_number})</SelectItem>
@@ -130,17 +160,29 @@ export default function NotificationsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="font-medium">Message</Label>
+                <Label
+                  className="font-medium"
+                  style={{ color: "#2C1810", fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  Message
+                </Label>
                 <Textarea
                   placeholder="Type your message..."
                   rows={4}
-                  className="bg-muted/50 border-border/60 resize-none"
+                  style={{ ...inputStyle, resize: "none" }}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                 />
               </div>
               <Button
-                className="w-full gradient-primary text-primary-foreground border-0 font-semibold shadow-lg shadow-primary/20"
+                className="w-full font-semibold border-0"
+                style={{
+                  background: "#C4622D",
+                  color: "#fff",
+                  borderRadius: "999px",
+                  fontFamily: "'DM Sans', sans-serif",
+                  transition: "all 0.2s ease",
+                }}
                 onClick={handleSend}
                 disabled={loading}
               >
@@ -148,13 +190,29 @@ export default function NotificationsPage() {
               </Button>
 
               <div className="relative">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" style={{ borderColor: "#EDE0D4" }} />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span
+                    className="px-2"
+                    style={{ background: "#fff", color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    or
+                  </span>
+                </div>
               </div>
 
               <Button
                 variant="outline"
                 className="w-full font-semibold"
+                style={{
+                  borderColor: "#EDE0D4",
+                  color: "#2C1810",
+                  borderRadius: "999px",
+                  fontFamily: "'DM Sans', sans-serif",
+                  transition: "all 0.2s ease",
+                }}
                 onClick={handleSendAbsent}
                 disabled={sendingAbsent}
               >
@@ -165,39 +223,78 @@ export default function NotificationsPage() {
 
           {/* Log */}
           <Card className="card-elevated lg:col-span-2 overflow-hidden">
-            <CardHeader><CardTitle className="text-base font-semibold">Notification Log ({notifications.length})</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle
+                className="text-base font-semibold"
+                style={{ fontFamily: "'DM Sans', sans-serif", color: "#2C1810" }}
+              >
+                Notification Log ({notifications.length})
+              </CardTitle>
+            </CardHeader>
             <CardContent className="p-0">
               {notifications.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                  <Bell className="h-10 w-10 mb-3 opacity-30" />
-                  <p className="text-sm">No notifications sent yet</p>
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Bell className="h-10 w-10 mb-3 opacity-30" style={{ color: "#7C5C4E" }} />
+                  <p
+                    className="text-sm"
+                    style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    No notifications sent yet
+                  </p>
                 </div>
               ) : (
                 <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/30 hover:bg-muted/30">
-                      <TableHead className="font-semibold">Recipient</TableHead>
-                      <TableHead className="font-semibold">Message</TableHead>
-                      <TableHead className="font-semibold">Status</TableHead>
-                      <TableHead className="font-semibold">Time</TableHead>
+                  <TableHeader style={{ background: "#FDF6EE" }}>
+                    <TableRow className="hover:bg-transparent">
+                      {["Recipient", "Message", "Status", "Time"].map((h) => (
+                        <TableHead
+                          key={h}
+                          className="font-semibold"
+                          style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                        >
+                          {h}
+                        </TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {notifications.map((n) => {
                       const StatusIcon = statusIcons[n.status] || Clock;
-                      const colorClass = statusColors[n.status] || "bg-muted/10 text-muted-foreground";
+                      const style = statusStyles[n.status] || { bg: "#F5F5F5", text: "#7C5C4E" };
                       const studentName = studentMap.get(n.student_id) || n.student_id;
                       const timeStr = n.created_at ? new Date(n.created_at).toLocaleString() : "";
                       return (
-                        <TableRow key={n.id} className="hover:bg-muted/30 transition-colors">
-                          <TableCell className="font-semibold text-sm">{studentName}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{n.message}</TableCell>
-                          <TableCell>
-                            <Badge className={`border-0 gap-1 font-semibold ${colorClass}`}>
-                              <StatusIcon className="h-3 w-3" /> {n.status}
-                            </Badge>
+                        <TableRow
+                          key={n.id}
+                          className="transition-colors"
+                          style={{ borderColor: "#EDE0D4" }}
+                        >
+                          <TableCell
+                            className="font-semibold text-sm"
+                            style={{ color: "#2C1810", fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            {studentName}
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{timeStr}</TableCell>
+                          <TableCell
+                            className="text-sm max-w-[200px] truncate"
+                            style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            {n.message}
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold w-fit"
+                              style={{ background: style.bg, color: style.text }}
+                            >
+                              <StatusIcon className="h-3 w-3" /> {n.status}
+                            </span>
+                          </TableCell>
+                          <TableCell
+                            className="text-xs"
+                            style={{ color: "#7C5C4E", fontFamily: "'DM Sans', sans-serif" }}
+                          >
+                            {timeStr}
+                          </TableCell>
                         </TableRow>
                       );
                     })}

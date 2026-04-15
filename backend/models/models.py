@@ -41,14 +41,17 @@ def face_embedding_doc(student_id: str, embedding_vector: list, image_path: str)
     }
 
 
-def attendance_doc(student_id: str, status: str, confidence: float) -> dict:
-    return {
+def attendance_doc(student_id: str, status: str, confidence: float, period: str = None) -> dict:
+    doc = {
         "_id": generate_id(),
         "student_id": student_id,
         "date": datetime.datetime.utcnow(),
         "status": status,
         "confidence": confidence,
     }
+    if period:
+        doc["period"] = period
+    return doc
 
 
 def notification_doc(student_id: str, message: str, status: str = "PENDING") -> dict:

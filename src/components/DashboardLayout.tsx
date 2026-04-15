@@ -6,7 +6,7 @@ import { AppHeader } from "@/components/AppHeader";
 export function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-slate-50 relative z-0">
+      <div className="min-h-screen flex w-full relative z-0" style={{ background: "#FDF6EE" }}>
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0 bg-transparent">
           <AppHeader />

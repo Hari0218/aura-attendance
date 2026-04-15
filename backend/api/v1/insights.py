@@ -161,3 +161,43 @@ async def get_risk_alerts(
     alerts.sort(key=lambda x: risk_order.get(x["risk_level"], 3))
 
     return alerts
+
+
+@router.get("/attendance-summary", response_model=List[schemas.AttendanceSummaryStudent])
+async def get_attendance_summary(
+    class_id: Optional[str] = None,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get overall attendance percentage for every student (optionally filtered by class)."""
+    student_filter = {}
+    if class_id:
+        student_filter["class_id"] = class_id
+
+    all_students = await db.students.find(student_filter).to_list(length=5000)
+
+    # Fetch classroom name map
+    classrooms = await db.classrooms.find().to_list(length=1000)
+    class_map = {c["_id"]: c["name"] for c in classrooms}
+
+    results = []
+    for student in all_students:
+        records = await db.attendance.find({"student_id": student["_id"]}).to_list(length=10000)
+        total = len(records)
+        present = len([r for r in records if r["status"] == "PRESENT"])
+        absent = total - present
+        rate = round((present / total * 100) if total > 0 else 0, 1)
+
+        results.append({
+            "student_id": student["_id"],
+            "student_name": student["name"],
+            "roll_number": student["roll_number"],
+            "class_name": class_map.get(student.get("class_id", ""), "Unknown"),
+            "present_count": present,
+            "absent_count": absent,
+            "total_count": total,
+            "attendance_rate": rate,
+        })
+
+    results.sort(key=lambda x: x["attendance_rate"])
+    return results

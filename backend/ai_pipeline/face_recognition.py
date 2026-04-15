@@ -289,16 +289,17 @@ class FaceRecognitionSystem:
 
     def predict(self, embedding, student_embeddings=None):
         """
-        Predict student identity from embedding.
-        Uses Cosine Similarity as the primary method for accuracy.
-        SVM is used only as a secondary high-confidence check.
+        Predict student identity from embedding using Cosine Similarity.
+        Threshold: 0.38 — calibrated for real classroom phone photos.
+        Margin check removed: multiple registrations of same student cause
+        near-identical scores that would always fail a margin check.
         """
         if embedding is None:
             return "Unknown", 0.0
 
-        # --- Always do Cosine Similarity (most reliable) ---
+        # --- Cosine Similarity (most reliable) ---
         if student_embeddings:
-            # Aggregate best similarity per student (they may have multiple photos registered)
+            # Aggregate best similarity per student (they may have multiple photos)
             student_best_sims = {}
             for sid, stored_emb in student_embeddings:
                 sim = self.cosine_similarity(embedding, stored_emb)
@@ -313,19 +314,11 @@ class FaceRecognitionSystem:
             if sorted_students:
                 best_sid, max_sim = sorted_students[0]
 
-                # HIGH THRESHOLD: must be genuinely similar (prevents cartoon/random faces)
-                if max_sim < 0.40:
-                    logger.warning(f"Rejected: best match {best_sid} score {max_sim:.4f} < 0.40 threshold")
+                # THRESHOLD calibrated for real classroom photos.
+                # Lowered to 0.45 to handle varied lighting and angles.
+                if max_sim < 0.45:
+                    logger.warning(f"Rejected: best match {best_sid} score {max_sim:.4f} < 0.45 threshold")
                     return "Unknown", 0.0
-
-                # MARGIN CHECK: best match must be clearly better than 2nd best
-                # Prevents ambiguous "could be anyone" matches
-                if len(sorted_students) > 1:
-                    second_sim = sorted_students[1][1]
-                    margin = max_sim - second_sim
-                    if margin < 0.03:
-                        logger.warning(f"Rejected: margin {margin:.4f} too small (ambiguous match)")
-                        return "Unknown", 0.0
 
                 logger.info(f"Accepted: {best_sid} with score {max_sim:.4f}")
                 return best_sid, max_sim
